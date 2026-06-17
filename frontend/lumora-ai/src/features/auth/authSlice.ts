@@ -5,6 +5,7 @@ interface User {
   name: string
   email: string
   role: 'USER' | 'ADMIN'
+  avatar?: string
 }
 
 interface AuthState {
