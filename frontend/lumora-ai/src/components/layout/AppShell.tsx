@@ -1,6 +1,9 @@
-import { Outlet } from 'react-router-dom'
-import { BookOpen, GraduationCap, LayoutDashboard, User } from 'lucide-react'
+import { Outlet, useNavigate } from 'react-router-dom'
+import { BookOpen, GraduationCap, LayoutDashboard, User, LogOut } from 'lucide-react'
 import { Link, useLocation } from 'react-router-dom'
+import { useAppDispatch } from '@/app/hooks'
+import { useLogoutMutation } from '@/features/auth/authApi'
+import { logout as logoutAction } from '@/features/auth/authSlice'
 
 const sidebarNav = [
   { to: '/dashboard', label: 'Dashboard', icon: LayoutDashboard },
@@ -11,6 +14,19 @@ const sidebarNav = [
 
 const AppShell = () => {
   const location = useLocation()
+  const dispatch = useAppDispatch()
+  const navigate = useNavigate()
+  const [logoutApi] = useLogoutMutation()
+
+  const handleLogout = async () => {
+    try {
+      await logoutApi().unwrap()
+    } catch {
+      // Continue with local logout even if API call fails
+    }
+    dispatch(logoutAction())
+    navigate('/login')
+  }
 
   return (
     <div className="flex h-screen bg-gray-50">
@@ -39,8 +55,17 @@ const AppShell = () => {
             )
           })}
         </nav>
+        <div className="border-t border-gray-200 p-4">
+          <button
+            onClick={handleLogout}
+            className="flex w-full items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium text-gray-600 hover:bg-gray-100 hover:text-gray-900 transition-colors"
+          >
+            <LogOut className="h-5 w-5" />
+            Logout
+          </button>
+        </div>
       </aside>
-      <main className="flex-1 overflow-auto">
+      <main className="flex-1 overflow-auto p-8">
         <Outlet />
       </main>
     </div>
