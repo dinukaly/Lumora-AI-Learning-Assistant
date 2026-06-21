@@ -24,24 +24,23 @@ export function getChatProvider(): ChatProvider {
 }
 
 // Embedding Provider Factory
+// Real embedding providers (Google, HuggingFace, local) will be added in a future phase.
+// For now, the mock provider is the only available option.
 
 let embeddingProviderInstance: EmbeddingProvider | null = null;
 
 export function getEmbeddingProvider(): EmbeddingProvider {
   if (embeddingProviderInstance) return embeddingProviderInstance;
 
-  switch (config.embedding.provider) {
-    case 'google':
-      // Google text-embedding-004 via OpenRouter's embedding endpoint
-      embeddingProviderInstance = new OpenRouterEmbeddingProvider();
-      break;
-    case 'mock':
-      embeddingProviderInstance = new MockEmbeddingProvider();
-      break;
-    default:
-      throw new Error(`Unknown embedding provider: ${config.embedding.provider}`);
+  if (config.embedding.provider !== 'mock') {
+    console.warn(
+      `Embedding provider "${config.embedding.provider}" is not yet implemented. ` +
+      'Falling back to MockEmbeddingProvider. ' +
+      'Set EMBEDDING_PROVIDER=mock in your .env for now.',
+    );
   }
 
+  embeddingProviderInstance = new MockEmbeddingProvider();
   return embeddingProviderInstance;
 }
 
@@ -76,52 +75,5 @@ class MockEmbeddingProvider implements EmbeddingProvider {
 
   async embedBatch(texts: string[]): Promise<number[][]> {
     return texts.map(() => new Array(config.embedding.dimensions).fill(0.1));
-  }
-}
-
-// OpenRouter Embedding Provider
-
-class OpenRouterEmbeddingProvider implements EmbeddingProvider {
-  private readonly apiKey: string;
-  private readonly baseUrl: string;
-
-  constructor() {
-    this.apiKey = config.chat.openrouter.apiKey;
-    this.baseUrl = config.chat.openrouter.baseUrl;
-  }
-
-  async embed(text: string): Promise<number[]> {
-    const results = await this.embedBatch([text]);
-    return results[0];
-  }
-
-  async embedBatch(texts: string[]): Promise<number[][]> {
-    const response = await fetch(`${this.baseUrl}/embeddings`, {
-      method: 'POST',
-      headers: {
-        'Content-Type': 'application/json',
-        Authorization: `Bearer ${this.apiKey}`,
-        'HTTP-Referer': 'http://localhost:5173',
-        'X-Title': 'Lumora',
-      },
-      body: JSON.stringify({
-        model: config.embedding.model,
-        input: texts,
-      }),
-    });
-
-    if (!response.ok) {
-      const errorText = await response.text();
-      throw new Error(`Embedding API error (${response.status}): ${errorText}`);
-    }
-
-    const data = (await response.json()) as {
-      data: { embedding: number[]; index: number }[];
-    };
-
-    // Sort by index to maintain input order
-    return data.data
-      .sort((a, b) => a.index - b.index)
-      .map((item) => item.embedding);
   }
 }

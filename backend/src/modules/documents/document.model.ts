@@ -20,6 +20,8 @@ export interface IDocument extends Document {
   subjectTag?: string;
   summary?: ISummary;
   processingError?: string;
+  flashcardCount?: number;
+  quizCount?: number;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -49,6 +51,8 @@ const DocumentSchema: Schema = new Schema(
       default: undefined,
     },
     processingError: { type: String },
+    flashcardCount: { type: Number, default: 0 },
+    quizCount: { type: Number, default: 0 },
   },
   {
     timestamps: true,

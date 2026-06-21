@@ -13,6 +13,8 @@ export interface DocumentData {
   fileSize?: number
   subjectTag?: string
   processingError?: string
+  flashcardCount?: number
+  quizCount?: number
   createdAt: string
   updatedAt: string
 }
