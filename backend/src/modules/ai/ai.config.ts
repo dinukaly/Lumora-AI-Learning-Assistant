@@ -1,5 +1,13 @@
 import { config } from '../../config/index.js';
-import type { ChatProvider, EmbeddingProvider } from './ai-providers.js';
+import type {
+  ChatChunk,
+  ChatProvider,
+  ChatResponse,
+  EmbeddingProvider,
+} from './ai-providers.js';
+import { GoogleEmbeddingProvider } from './google-embedding.provider.js';
+import { HuggingFaceEmbeddingProvider } from './huggingface-embedding.provider.js';
+import { LocalEmbeddingProvider } from './local-embedding.provider.js';
 import { OpenRouterChatProvider } from './openrouter.provider.js';
 
 // Chat Provider Factory
@@ -24,30 +32,35 @@ export function getChatProvider(): ChatProvider {
 }
 
 // Embedding Provider Factory
-// Real embedding providers (Google, HuggingFace, local) will be added in a future phase.
-// For now, the mock provider is the only available option.
 
 let embeddingProviderInstance: EmbeddingProvider | null = null;
 
 export function getEmbeddingProvider(): EmbeddingProvider {
   if (embeddingProviderInstance) return embeddingProviderInstance;
 
-  if (config.embedding.provider !== 'mock') {
-    console.warn(
-      `Embedding provider "${config.embedding.provider}" is not yet implemented. ` +
-      'Falling back to MockEmbeddingProvider. ' +
-      'Set EMBEDDING_PROVIDER=mock in your .env for now.',
-    );
+  switch (config.embedding.provider) {
+    case 'google':
+      embeddingProviderInstance = new GoogleEmbeddingProvider();
+      break;
+    case 'huggingface':
+      embeddingProviderInstance = new HuggingFaceEmbeddingProvider();
+      break;
+    case 'local':
+      embeddingProviderInstance = new LocalEmbeddingProvider();
+      break;
+    case 'mock':
+      embeddingProviderInstance = new MockEmbeddingProvider();
+      break;
+    default:
+      throw new Error(`Unknown embedding provider: ${config.embedding.provider}`);
   }
-
-  embeddingProviderInstance = new MockEmbeddingProvider();
   return embeddingProviderInstance;
 }
 
 // Mock Providers (for testing / offline dev)
 
 class MockChatProvider implements ChatProvider {
-  async generate(prompt: string): Promise<any> {
+  async generate(prompt: string): Promise<ChatResponse> {
     return {
       content: `[Mock response to: "${prompt.slice(0, 50)}..."]`,
       finishReason: 'stop',
@@ -55,11 +68,12 @@ class MockChatProvider implements ChatProvider {
     };
   }
 
-  async generateJSON<T>(prompt: string): Promise<T> {
+  async generateJSON<T>(prompt: string, _schema: string): Promise<T> {
+    void _schema;
     return JSON.parse(`{"mock": true, "query": "${prompt.slice(0, 20)}"}`) as T;
   }
 
-  async *generateStream(prompt: string): AsyncIterable<any> {
+  async *generateStream(prompt: string): AsyncIterable<ChatChunk> {
     const words = `[Mock streaming response to: "${prompt.slice(0, 30)}..."]`.split(' ');
     for (const word of words) {
       yield { content: word + ' ', done: false };
@@ -69,7 +83,8 @@ class MockChatProvider implements ChatProvider {
 }
 
 class MockEmbeddingProvider implements EmbeddingProvider {
-  async embed(_text: string): Promise<number[]> {
+  async embed(text: string): Promise<number[]> {
+    void text;
     return new Array(config.embedding.dimensions).fill(0.1);
   }
 

@@ -5,6 +5,16 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
+const embeddingProvider = process.env.EMBEDDING_PROVIDER || 'local';
+const defaultEmbeddingModel = process.env.EMBEDDING_MODEL
+  || (embeddingProvider === 'google'
+    ? 'text-embedding-004'
+    : embeddingProvider === 'huggingface'
+      ? 'sentence-transformers/all-MiniLM-L6-v2'
+      : 'Xenova/all-MiniLM-L6-v2');
+const defaultEmbeddingDimensions = process.env.EMBEDDING_DIMENSIONS
+  || (embeddingProvider === 'google' ? '768' : '384');
+
 export const config = {
   env: process.env.NODE_ENV || 'development',
   port: parseInt(process.env.PORT || '5000', 10),
@@ -32,9 +42,23 @@ export const config = {
 
   // Embedding Provider — replaceable (google | huggingface | local)
   embedding: {
-    provider: process.env.EMBEDDING_PROVIDER || 'google',
-    model: process.env.EMBEDDING_MODEL || 'text-embedding-004',
-    dimensions: parseInt(process.env.EMBEDDING_DIMENSIONS || '768', 10),
+    provider: embeddingProvider,
+    model: defaultEmbeddingModel,
+    dimensions: parseInt(defaultEmbeddingDimensions, 10),
+    batchSize: parseInt(process.env.EMBEDDING_BATCH_SIZE || '20', 10),
+    google: {
+      apiKey: process.env.GOOGLE_API_KEY || '',
+      baseUrl: process.env.GOOGLE_AI_BASE_URL || 'https://generativelanguage.googleapis.com/v1beta',
+    },
+    huggingface: {
+      apiKey: process.env.HUGGINGFACE_API_KEY || '',
+      baseUrl:
+        process.env.HUGGINGFACE_BASE_URL
+        || 'https://api-inference.huggingface.co/pipeline/feature-extraction',
+    },
+    local: {
+      cacheDir: process.env.EMBEDDING_MODEL_CACHE_DIR || '',
+    },
   },
 
   // Storage — S3-compatible (MinIO local → Cloudflare R2 prod)
@@ -57,5 +81,11 @@ export const config = {
   extraction: {
     pythonExecutable: process.env.PYTHON_EXECUTABLE || 'python',
     timeoutMs: parseInt(process.env.PDF_EXTRACTION_TIMEOUT_MS || '120000', 10),
+  },
+
+  chunking: {
+    targetTokens: parseInt(process.env.CHUNK_TARGET_TOKENS || '750', 10),
+    maxTokens: parseInt(process.env.CHUNK_MAX_TOKENS || '900', 10),
+    overlapTokens: parseInt(process.env.CHUNK_OVERLAP_TOKENS || '150', 10),
   },
 };

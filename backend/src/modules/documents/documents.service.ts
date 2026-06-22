@@ -6,6 +6,7 @@ import { S3CompatibleStorageProvider } from '../../common/storage/index.js';
 import type { StorageProvider } from '../../common/storage/index.js';
 import { enqueueTextExtraction } from '../../common/queue/index.js';
 import Document from './document.model.js';
+import DocumentChunk from './document-chunk.model.js';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = ['application/pdf'];
@@ -13,6 +14,19 @@ const ALLOWED_MIME_TYPES = ['application/pdf'];
 const storageProvider: StorageProvider = new S3CompatibleStorageProvider();
 
 const storage = multer.memoryStorage();
+
+export interface DocumentChunkWriteInput {
+  chunkIndex: number;
+  text: string;
+  embedding: number[];
+  pageNumber: number;
+  tokenCount: number;
+  metadata: {
+    pageNumbers: number[];
+    startPageNumber: number;
+    endPageNumber: number;
+  };
+}
 
 function storageKeyFromUrl(storageUrl: string) {
   try {
@@ -83,6 +97,17 @@ export class DocumentsService {
     );
   }
 
+  static async markChunkingRunning(documentId: string) {
+    return Document.findByIdAndUpdate(
+      documentId,
+      {
+        status: 'PROCESSING',
+        $unset: { processingError: 1 },
+      },
+      { new: true },
+    );
+  }
+
   static async storeExtractedContent(
     documentId: string,
     extraction: {
@@ -116,6 +141,46 @@ export class DocumentsService {
       status: 'FAILED',
       processingError: error,
     });
+  }
+
+  static async getDocumentForChunking(documentId: string) {
+    const document = await Document.findById(documentId).lean();
+
+    if (!document) {
+      throw new Error('Document not found during chunking');
+    }
+
+    return document;
+  }
+
+  static async storeChunksAndMarkReady(documentId: string, chunks: DocumentChunkWriteInput[]) {
+    const objectId = new mongoose.Types.ObjectId(documentId);
+
+    await DocumentChunk.deleteMany({ documentId: objectId });
+
+    if (chunks.length > 0) {
+      await DocumentChunk.insertMany(
+        chunks.map((chunk) => ({
+          documentId: objectId,
+          ...chunk,
+        })),
+      );
+    }
+
+    const document = await Document.findByIdAndUpdate(
+      documentId,
+      {
+        status: 'READY',
+        $unset: { processingError: 1 },
+      },
+      { new: true, runValidators: true },
+    );
+
+    if (!document) {
+      throw new Error('Document not found while marking chunking complete');
+    }
+
+    return document;
   }
 
   static async listDocuments(ownerId: string, options: { page: number; limit: number; status?: string }) {
@@ -184,7 +249,10 @@ export class DocumentsService {
     }
 
     const key = storageKeyFromUrl(document.storageUrl);
-    await storageProvider.delete(key);
+    await Promise.all([
+      storageProvider.delete(key),
+      DocumentChunk.deleteMany({ documentId: document._id }),
+    ]);
 
     return document;
   }
