@@ -1,4 +1,9 @@
-import { S3Client, PutObjectCommand, DeleteObjectCommand } from '@aws-sdk/client-s3';
+import {
+  S3Client,
+  PutObjectCommand,
+  GetObjectCommand,
+  DeleteObjectCommand,
+} from '@aws-sdk/client-s3';
 import { config } from '../../config/index.js';
 import type { StorageProvider } from './storage-provider.interface.js';
 
@@ -32,6 +37,21 @@ export class S3CompatibleStorageProvider implements StorageProvider {
     );
 
     return `${this.endpoint}/${this.bucketName}/${key}`;
+  }
+
+  async download(key: string): Promise<Buffer> {
+    const response = await this.client.send(
+      new GetObjectCommand({
+        Bucket: this.bucketName,
+        Key: key,
+      }),
+    );
+
+    if (!response.Body) {
+      throw new Error(`Storage object "${key}" has no body`);
+    }
+
+    return Buffer.from(await response.Body.transformToByteArray());
   }
 
   async delete(key: string): Promise<void> {

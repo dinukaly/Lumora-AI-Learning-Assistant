@@ -14,8 +14,8 @@ export class DocumentsController {
 
       const document = await DocumentsService.createDocumentRecord(userId, title, req.file);
 
-      res.status(201).json({
-        message: 'Document uploaded successfully',
+      res.status(202).json({
+        message: 'Document uploaded and queued for processing',
         document,
       });
     } catch (error: any) {

@@ -53,4 +53,9 @@ export const config = {
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
     password: process.env.REDIS_PASSWORD || undefined,
   },
+
+  extraction: {
+    pythonExecutable: process.env.PYTHON_EXECUTABLE || 'python',
+    timeoutMs: parseInt(process.env.PDF_EXTRACTION_TIMEOUT_MS || '120000', 10),
+  },
 };

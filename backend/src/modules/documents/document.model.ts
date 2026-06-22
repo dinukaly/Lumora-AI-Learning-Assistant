@@ -9,6 +9,11 @@ export interface ISummary {
   generatedAt: Date;
 }
 
+export interface IExtractedPage {
+  page: number;
+  text: string;
+}
+
 export interface IDocument extends Document {
   ownerId: mongoose.Types.ObjectId;
   title: string;
@@ -16,6 +21,9 @@ export interface IDocument extends Document {
   storageUrl: string;
   status: DocumentStatus;
   pageCount?: number;
+  extractedText?: string;
+  extractedPages?: IExtractedPage[];
+  extractedAt?: Date;
   fileSize?: number;
   subjectTag?: string;
   summary?: ISummary;
@@ -39,6 +47,18 @@ const DocumentSchema: Schema = new Schema(
       required: true,
     },
     pageCount: { type: Number },
+    extractedText: { type: String },
+    extractedPages: {
+      type: [
+        {
+          _id: false,
+          page: { type: Number, required: true },
+          text: { type: String, required: true },
+        },
+      ],
+      default: undefined,
+    },
+    extractedAt: { type: Date },
     fileSize: { type: Number },
     subjectTag: { type: String, trim: true },
     summary: {
