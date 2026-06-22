@@ -9,6 +9,7 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "eslint src/**/*.ts",
+    "test:extraction": "python -m unittest discover -s python-worker/tests -v",
     "format": "prettier --write src/**/*.ts"
   },
   "dependencies": {
