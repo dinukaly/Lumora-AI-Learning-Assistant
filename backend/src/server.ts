@@ -2,6 +2,8 @@ import app from './app.js';
 import { config } from './config/index.js';
 import { connectDB } from './config/db.js';
 import { ensureDocumentChunkVectorIndex } from './modules/documents/document-vector-search.service.js';
+import { createServer } from 'http';
+import { initializeSocketServer } from './common/realtime/socket.js';
 
 const startServer = async () => {
   // Connect to Database
@@ -26,8 +28,10 @@ const startServer = async () => {
   await import('./common/queue/worker.js');
 
   const PORT = config.port;
+  const httpServer = createServer(app);
+  initializeSocketServer(httpServer);
 
-  app.listen(PORT, () => {
+  httpServer.listen(PORT, () => {
     console.log(`Server running in ${config.env} mode on port ${PORT}`);
   });
 };

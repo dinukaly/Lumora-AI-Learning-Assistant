@@ -7,6 +7,7 @@ import type { StorageProvider } from '../../common/storage/index.js';
 import { enqueueTextExtraction } from '../../common/queue/index.js';
 import Document from './document.model.js';
 import DocumentChunk from './document-chunk.model.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = ['application/pdf'];
@@ -137,10 +138,26 @@ export class DocumentsService {
   }
 
   static async markProcessingFailed(documentId: string, error: string) {
-    return Document.findByIdAndUpdate(documentId, {
-      status: 'FAILED',
-      processingError: error,
-    });
+    const document = await Document.findByIdAndUpdate(
+      documentId,
+      {
+        status: 'FAILED',
+        processingError: error,
+      },
+      { new: true },
+    );
+
+    if (document) {
+      await NotificationsService.notifyDocumentFailed({
+        userId: document.ownerId.toString(),
+        documentId: document.id,
+        title: document.title,
+        originalFileName: document.originalFileName,
+        error,
+      });
+    }
+
+    return document;
   }
 
   static async getDocumentForChunking(documentId: string) {
@@ -179,6 +196,13 @@ export class DocumentsService {
     if (!document) {
       throw new Error('Document not found while marking chunking complete');
     }
+
+    await NotificationsService.notifyDocumentReady({
+      userId: document.ownerId.toString(),
+      documentId: document.id,
+      title: document.title,
+      originalFileName: document.originalFileName,
+    });
 
     return document;
   }
