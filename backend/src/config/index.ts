@@ -88,4 +88,20 @@ export const config = {
     maxTokens: parseInt(process.env.CHUNK_MAX_TOKENS || '900', 10),
     overlapTokens: parseInt(process.env.CHUNK_OVERLAP_TOKENS || '150', 10),
   },
+
+  vectorSearch: {
+    indexName: process.env.VECTOR_SEARCH_INDEX_NAME || 'document_chunks_vector_idx',
+    similarity: process.env.VECTOR_SEARCH_SIMILARITY || 'cosine',
+    defaultLimit: parseInt(process.env.VECTOR_SEARCH_DEFAULT_LIMIT || '5', 10),
+    numCandidatesMultiplier: parseInt(
+      process.env.VECTOR_SEARCH_NUM_CANDIDATES_MULTIPLIER || '20',
+      10,
+    ),
+    autoEnsureOnStartup: process.env.VECTOR_SEARCH_AUTO_ENSURE !== 'false',
+    readyTimeoutMs: parseInt(process.env.VECTOR_SEARCH_READY_TIMEOUT_MS || '300000', 10),
+    readyPollIntervalMs: parseInt(
+      process.env.VECTOR_SEARCH_READY_POLL_INTERVAL_MS || '5000',
+      10,
+    ),
+  },
 };
