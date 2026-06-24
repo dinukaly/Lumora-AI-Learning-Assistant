@@ -63,6 +63,18 @@ const DocumentCard = ({ document, onDelete }: DocumentCardProps) => {
             <span>{formatDate(document.createdAt)}</span>
           </div>
         </div>
+
+        {document.status === 'PROCESSING' && (
+          <p className="mt-3 text-xs text-amber-700">
+            Processing in real time. This card will update automatically when it finishes.
+          </p>
+        )}
+
+        {document.status === 'FAILED' && document.processingError && (
+          <p className="mt-3 rounded-lg bg-red-50 px-3 py-2 text-xs text-red-700">
+            {document.processingError}
+          </p>
+        )}
       </CardContent>
     </Card>
   )
