@@ -5,6 +5,7 @@ import DashboardPage from '@/features/dashboard/DashboardPage'
 import DocumentsPage from '@/features/documents/DocumentsPage'
 import FlashcardsPage from '@/features/learning/FlashcardsPage'
 import ProfilePage from '@/features/auth/ProfilePage'
+import WorkspacePage from '@/features/workspace/WorkspacePage'
 import AppShell from '@/components/layout/AppShell'
 import AuthGuard from '@/components/layout/AuthGuard'
 
@@ -17,6 +18,7 @@ const App = () => {
         <Route element={<AppShell />}>
           <Route path="/dashboard" element={<DashboardPage />} />
           <Route path="/documents" element={<DocumentsPage />} />
+          <Route path="/workspace/:documentId" element={<WorkspacePage />} />
           <Route path="/flashcards" element={<FlashcardsPage />} />
           <Route path="/profile" element={<ProfilePage />} />
         </Route>

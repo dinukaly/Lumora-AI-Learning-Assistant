@@ -19,6 +19,10 @@ export interface DocumentData {
   updatedAt: string
 }
 
+interface DocumentDetailResponse {
+  document: DocumentData
+}
+
 interface DocumentsListResponse {
   documents: DocumentData[]
   pagination: {
@@ -57,6 +61,7 @@ export const documentsApi = apiSlice.injectEndpoints({
 
     getDocument: builder.query<DocumentData, string>({
       query: (id) => `/documents/${id}`,
+      transformResponse: (response: DocumentDetailResponse) => response.document,
       providesTags: (_result, _error, id) => [{ type: 'Documents', id }],
     }),
 
