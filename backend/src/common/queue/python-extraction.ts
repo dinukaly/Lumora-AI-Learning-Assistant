@@ -46,6 +46,10 @@ function runPythonExtractor(pdfPath: string): Promise<string> {
     const child = spawn(config.extraction.pythonExecutable, [extractionScript, pdfPath], {
       windowsHide: true,
       stdio: ['ignore', 'pipe', 'pipe'],
+      env: {
+        ...process.env,
+        PYTHONIOENCODING: 'utf-8',
+      },
     });
 
     const stdout: Buffer[] = [];
