@@ -16,6 +16,7 @@ import { Button } from "@/components/ui/button";
 
 export const TopBar = () => {
   const { user } = useAppSelector((state) => state.auth);
+  const activeToastCount = useAppSelector((state) => state.ui.toasts.length);
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
   const [logoutApi] = useLogoutMutation();
@@ -46,7 +47,11 @@ export const TopBar = () => {
       <div className="flex items-center gap-2 sm:gap-4">
         <Button variant="ghost" size="icon" className="relative text-gray-500 hover:text-gray-700">
           <Bell className="h-5 w-5" />
-          <span className="absolute right-2 top-2 h-2 w-2 rounded-full bg-red-500" />
+          {activeToastCount > 0 && (
+            <span className="absolute -right-0.5 -top-0.5 inline-flex min-w-4 items-center justify-center rounded-full bg-red-500 px-1 text-[10px] font-semibold text-white">
+              {activeToastCount}
+            </span>
+          )}
         </Button>
 
         <div className="h-6 w-[1px] bg-gray-200 mx-2" />

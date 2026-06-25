@@ -3,14 +3,18 @@ import { Outlet } from "react-router-dom";
 import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
+import { RealtimeBridge } from "./RealtimeBridge";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { ToastViewport } from "@/components/ui/toast-viewport";
 
 const AppShell = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
+      <RealtimeBridge />
+      <ToastViewport />
       {/* Desktop Sidebar */}
       <Sidebar className="hidden lg:flex" />
 
