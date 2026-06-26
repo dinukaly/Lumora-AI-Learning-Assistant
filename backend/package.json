@@ -9,12 +9,14 @@
     "build": "tsc",
     "start": "node dist/server.js",
     "lint": "eslint src/**/*.ts",
+    "test:ai": "tsx --test src/modules/ai/ai.service.test.ts",
     "test:chunking": "tsx --test src/modules/documents/document-chunking.test.ts",
     "test:vector-search": "tsx --test src/modules/documents/document-vector-search.test.ts",
     "test:extraction": "python -m unittest discover -s python-worker/tests -v",
     "verify:t33": "tsx scripts/verify-chunking-embedding.ts",
     "verify:t34": "tsx scripts/verify-vector-search.ts",
     "verify:t35": "tsx scripts/verify-document-ready-notification.ts",
+    "verify:t42": "tsx scripts/verify-ai-orchestrator.ts",
     "format": "prettier --write src/**/*.ts"
   },
   "dependencies": {
