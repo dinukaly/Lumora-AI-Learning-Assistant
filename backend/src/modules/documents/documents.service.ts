@@ -41,6 +41,14 @@ function storageKeyFromUrl(storageUrl: string) {
   return path.basename(storageUrl);
 }
 
+function resolveStorageKey(document: { storageKey?: string; storageUrl: string }) {
+  if (document.storageKey) {
+    return document.storageKey;
+  }
+
+  return storageKeyFromUrl(document.storageUrl);
+}
+
 const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: FileFilterCallback) => {
   if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
     cb(null, true);
@@ -69,6 +77,7 @@ export class DocumentsService {
       ownerId: new mongoose.Types.ObjectId(ownerId),
       title,
       originalFileName: file.originalname,
+      storageKey: uniqueName,
       storageUrl,
       status: 'PROCESSING',
       fileSize: file.size,
@@ -272,12 +281,23 @@ export class DocumentsService {
       throw new Error('Document not found');
     }
 
-    const key = storageKeyFromUrl(document.storageUrl);
+    const key = resolveStorageKey(document);
     await Promise.all([
       storageProvider.delete(key),
       DocumentChunk.deleteMany({ documentId: document._id }),
     ]);
 
     return document;
+  }
+
+  static async getDocumentFile(documentId: string, ownerId: string) {
+    const document = await this.getDocumentById(documentId, ownerId);
+    const key = resolveStorageKey(document);
+    const file = await storageProvider.download(key);
+
+    return {
+      document,
+      file,
+    };
   }
 }

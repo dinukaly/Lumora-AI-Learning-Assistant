@@ -7,6 +7,7 @@ export interface DocumentData {
   ownerId: string
   title: string
   originalFileName: string
+  storageKey?: string
   storageUrl: string
   status: DocumentStatus
   pageCount?: number

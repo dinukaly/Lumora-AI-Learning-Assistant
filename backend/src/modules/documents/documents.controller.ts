@@ -65,6 +65,30 @@ export class DocumentsController {
     }
   }
 
+  static async view(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user!.userId;
+      const documentId = req.params.id;
+
+      const { document, file } = await DocumentsService.getDocumentFile(documentId, userId);
+
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Length', String(file.length));
+      res.setHeader('Content-Disposition', `inline; filename="${encodeURIComponent(document.originalFileName)}"`);
+      res.setHeader('Cache-Control', 'private, max-age=60');
+
+      res.status(200).send(file);
+    } catch (error: any) {
+      if (error.message === 'Invalid document ID') {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: error.message } });
+      }
+      if (error.message === 'Document not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
+      }
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+    }
+  }
+
   static async remove(req: AuthRequest, res: Response) {
     try {
       const userId = req.user!.userId;

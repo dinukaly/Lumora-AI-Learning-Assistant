@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import { Link, Navigate, useParams } from 'react-router-dom'
 import { skipToken } from '@reduxjs/toolkit/query'
 import {
@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useGetDocumentQuery, type DocumentData } from '@/features/documents/documentsApi'
+import { useAppSelector } from '@/app/hooks'
 import { Button } from '@/components/ui/button'
 import {
   Card,
@@ -113,6 +114,84 @@ function WorkspacePlaceholder({
 }
 
 function WorkspaceContentTab({ document }: { document: DocumentData }) {
+  const accessToken = useAppSelector((state) => state.auth.accessToken)
+  const [pdfUrl, setPdfUrl] = useState<string | null>(null)
+  const [isPdfLoading, setIsPdfLoading] = useState(true)
+  const [pdfError, setPdfError] = useState<string | null>(null)
+
+  useEffect(() => {
+    let objectUrl: string | null = null
+    let isActive = true
+
+    async function loadPdf() {
+      if (!accessToken) {
+        setPdfUrl(null)
+        setIsPdfLoading(false)
+        setPdfError('Waiting for an access token to load the PDF viewer.')
+        return
+      }
+
+      setIsPdfLoading(true)
+      setPdfError(null)
+
+      try {
+        const apiBaseUrl = import.meta.env.VITE_API_URL || 'http://localhost:5000/api'
+        const response = await fetch(`${apiBaseUrl}/v1/documents/${document._id}/view`, {
+          headers: {
+            Authorization: `Bearer ${accessToken}`,
+          },
+        })
+
+        if (!response.ok) {
+          throw new Error(`Failed to load PDF (${response.status})`)
+        }
+
+        const blob = await response.blob()
+        objectUrl = URL.createObjectURL(blob)
+
+        if (!isActive) {
+          URL.revokeObjectURL(objectUrl)
+          return
+        }
+
+        setPdfUrl((currentUrl) => {
+          if (currentUrl) {
+            URL.revokeObjectURL(currentUrl)
+          }
+          return objectUrl
+        })
+      } catch (error) {
+        if (!isActive) return
+        setPdfUrl((currentUrl) => {
+          if (currentUrl) {
+            URL.revokeObjectURL(currentUrl)
+          }
+          return null
+        })
+        setPdfError(error instanceof Error ? error.message : 'Failed to load PDF')
+      } finally {
+        if (isActive) {
+          setIsPdfLoading(false)
+        }
+      }
+    }
+
+    void loadPdf()
+
+    return () => {
+      isActive = false
+      if (objectUrl) {
+        URL.revokeObjectURL(objectUrl)
+      }
+      setPdfUrl((currentUrl) => {
+        if (currentUrl) {
+          URL.revokeObjectURL(currentUrl)
+        }
+        return null
+      })
+    }
+  }, [accessToken, document._id])
+
   return (
     <div className="grid gap-6 xl:grid-cols-[minmax(0,1fr)_20rem]">
       <Card className="overflow-hidden">
@@ -124,11 +203,25 @@ function WorkspaceContentTab({ document }: { document: DocumentData }) {
         </CardHeader>
         <CardContent className="p-0">
           <div className="aspect-[4/5] min-h-[32rem] w-full bg-gray-100">
-            <iframe
-              src={document.storageUrl}
-              title={`${document.title} PDF viewer`}
-              className="h-full w-full"
-            />
+            {isPdfLoading ? (
+              <div className="flex h-full items-center justify-center">
+                <Loader2 className="h-8 w-8 animate-spin text-emerald-600" />
+              </div>
+            ) : pdfError ? (
+              <div className="flex h-full flex-col items-center justify-center gap-3 px-6 text-center">
+                <AlertCircle className="h-8 w-8 text-red-500" />
+                <div>
+                  <p className="text-sm font-semibold text-red-900">PDF viewer unavailable</p>
+                  <p className="mt-1 text-sm text-red-700">{pdfError}</p>
+                </div>
+              </div>
+            ) : pdfUrl ? (
+              <iframe
+                src={pdfUrl}
+                title={`${document.title} PDF viewer`}
+                className="h-full w-full"
+              />
+            ) : null}
           </div>
         </CardContent>
       </Card>
