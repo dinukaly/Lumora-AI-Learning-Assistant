@@ -8,6 +8,7 @@ import type {
 } from './ai-providers.js';
 import Document from '../documents/document.model.js';
 import DocumentChunk from '../documents/document-chunk.model.js';
+import Message from '../conversations/message.model.js';
 import {
   searchDocumentChunksByQuery,
   type DocumentChunkSearchResult,
@@ -18,12 +19,24 @@ export interface AIContext {
   documentId: string;
   documentTitle: string;
   documentSummary?: string;
+  conversationSummary?: string;
+  recentMessages: Array<{
+    role: 'user' | 'assistant' | 'system';
+    content: string;
+  }>;
   retrievedChunks: DocumentChunkSearchResult[];
   userMessage: string;
 }
 
+export interface AIStreamChunk {
+  content: string;
+  done: boolean;
+  response?: AIResponse;
+}
+
 export interface AIOrchestrator {
   process(request: AIRequest): Promise<AIResponse>;
+  processStream(request: AIRequest): AsyncIterable<AIStreamChunk>;
   searchChunks(
     query: string,
     documentId: string,
@@ -72,6 +85,51 @@ const SYSTEM_PROMPTS: Record<AIAction, string> = {
 
 export class AIService implements AIOrchestrator {
   async process(request: AIRequest): Promise<AIResponse> {
+    const preparedRequest = await this.prepareRequest(request);
+    const response = await getChatProvider().generate(preparedRequest.prompt, {
+      temperature: preparedRequest.action === 'CHAT' ? 0.3 : 0.2,
+      maxTokens: 900,
+    });
+
+    return {
+      content: response.content,
+      citations: preparedRequest.citations,
+      tokenUsage: response.tokenUsage,
+      conversationId: preparedRequest.context.conversationId,
+      action: preparedRequest.action,
+    };
+  }
+
+  async *processStream(request: AIRequest): AsyncIterable<AIStreamChunk> {
+    const preparedRequest = await this.prepareRequest(request);
+    let content = '';
+
+    for await (const chunk of getChatProvider().generateStream(preparedRequest.prompt, {
+      temperature: preparedRequest.action === 'CHAT' ? 0.3 : 0.2,
+      maxTokens: 900,
+      stream: true,
+    })) {
+      if (chunk.content) {
+        content += chunk.content;
+      }
+
+      yield {
+        content: chunk.content,
+        done: chunk.done,
+        response: chunk.done
+          ? {
+            content,
+            citations: preparedRequest.citations,
+            tokenUsage: { prompt: 0, completion: 0, total: 0 },
+            conversationId: preparedRequest.context.conversationId,
+            action: preparedRequest.action,
+          }
+          : undefined,
+      };
+    }
+  }
+
+  private async prepareRequest(request: AIRequest) {
     if (!request.documentId) {
       throw new Error('AI orchestrator currently requires a documentId');
     }
@@ -85,17 +143,12 @@ export class AIService implements AIOrchestrator {
       chunks: retrievedChunks,
     });
     const prompt = this.buildPrompt(action, context);
-    const response = await getChatProvider().generate(prompt, {
-      temperature: action === 'CHAT' ? 0.3 : 0.2,
-      maxTokens: 900,
-    });
 
     return {
-      content: response.content,
-      citations: buildCitations(retrievedChunks),
-      tokenUsage: response.tokenUsage,
-      conversationId: context.conversationId,
       action,
+      context,
+      prompt,
+      citations: buildCitations(retrievedChunks),
     };
   }
 
@@ -104,13 +157,17 @@ export class AIService implements AIOrchestrator {
     documentId: string,
     topK: number,
   ): Promise<DocumentChunkSearchResult[]> {
-    const vectorResults = await searchDocumentChunksByQuery(query, {
-      documentId,
-      limit: topK,
-    });
+    try {
+      const vectorResults = await searchDocumentChunksByQuery(query, {
+        documentId,
+        limit: topK,
+      });
 
-    if (vectorResults.length > 0) {
-      return vectorResults;
+      if (vectorResults.length > 0) {
+        return vectorResults;
+      }
+    } catch {
+      // Fall through to lexical retrieval when vector search is unavailable.
     }
 
     return searchDocumentChunksByKeyword(query, documentId, topK);
@@ -121,6 +178,14 @@ export class AIService implements AIOrchestrator {
     const summaryBlock = context.documentSummary
       ? `\n[Document Summary]\n${context.documentSummary}\n`
       : '';
+    const conversationSummaryBlock = context.conversationSummary
+      ? `\n[Conversation Summary]\n${context.conversationSummary}\n`
+      : '';
+    const recentMessagesBlock = context.recentMessages.length > 0
+      ? context.recentMessages
+          .map((message) => `${message.role.toUpperCase()}: ${message.content}`)
+          .join('\n')
+      : '[No recent conversation history.]';
     const chunkBlock = context.retrievedChunks.length > 0
       ? context.retrievedChunks
           .map(
@@ -141,6 +206,10 @@ export class AIService implements AIOrchestrator {
       '',
       `[Document Title]\n${context.documentTitle}`,
       summaryBlock,
+      conversationSummaryBlock,
+      '[Recent Messages]',
+      recentMessagesBlock,
+      '',
       '[Retrieved Chunks]',
       chunkBlock,
       '',
@@ -173,11 +242,24 @@ export class AIService implements AIOrchestrator {
       throw new Error('Document not found for AI orchestration');
     }
 
+    const recentMessages = input.conversationId && !input.conversationId.startsWith('ephemeral:')
+      ? await Message.find({ conversationId: input.conversationId })
+        .sort({ createdAt: -1 })
+        .limit(6)
+        .select('role content')
+        .lean()
+      : [];
+
     return {
       conversationId: input.conversationId ?? buildEphemeralConversationId(input.documentId),
       documentId: input.documentId,
       documentTitle: document.title,
       documentSummary: document.summary?.text,
+      conversationSummary: undefined,
+      recentMessages: recentMessages.reverse().map((message) => ({
+        role: message.role,
+        content: message.content,
+      })),
       retrievedChunks: input.chunks,
       userMessage: input.userMessage,
     };

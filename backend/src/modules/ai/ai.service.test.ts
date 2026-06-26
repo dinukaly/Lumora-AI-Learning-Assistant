@@ -19,6 +19,12 @@ test('buildPrompt includes context, chunks, and user request', () => {
     documentId: 'doc123',
     documentTitle: 'Biology Notes',
     documentSummary: 'A short biology overview.',
+    recentMessages: [
+      {
+        role: 'user',
+        content: 'Remind me what proteins do.',
+      },
+    ],
     userMessage: 'What does the document say about ribosomes?',
     retrievedChunks: [
       {
@@ -40,6 +46,7 @@ test('buildPrompt includes context, chunks, and user request', () => {
 
   assert.match(prompt, /Biology Notes/);
   assert.match(prompt, /A short biology overview/);
+  assert.match(prompt, /Remind me what proteins do/);
   assert.match(prompt, /Ribosomes build proteins for the cell/);
   assert.match(prompt, /What does the document say about ribosomes/);
   assert.match(prompt, /page 4/);

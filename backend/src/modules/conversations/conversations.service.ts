@@ -36,6 +36,23 @@ interface MessageCitationInput {
 }
 
 export class ConversationsService {
+  static async getOwnedConversationRecord(conversationId: string, userId: string) {
+    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
+      throw new Error('Invalid conversation ID');
+    }
+
+    const conversation = await Conversation.findOne({
+      _id: conversationId,
+      userId: new mongoose.Types.ObjectId(userId),
+    }).lean();
+
+    if (!conversation) {
+      throw new Error('Conversation not found');
+    }
+
+    return conversation;
+  }
+
   static async createConversation(input: CreateConversationInput) {
     const userId = new mongoose.Types.ObjectId(input.userId);
     const documentId = input.documentId ? await this.ensureOwnedDocument(input.documentId, input.userId) : undefined;
@@ -129,18 +146,7 @@ export class ConversationsService {
   }
 
   static async getConversationById(conversationId: string, userId: string) {
-    if (!mongoose.Types.ObjectId.isValid(conversationId)) {
-      throw new Error('Invalid conversation ID');
-    }
-
-    const conversation = await Conversation.findOne({
-      _id: conversationId,
-      userId: new mongoose.Types.ObjectId(userId),
-    }).lean();
-
-    if (!conversation) {
-      throw new Error('Conversation not found');
-    }
+    const conversation = await this.getOwnedConversationRecord(conversationId, userId);
 
     const messages = await Message.find({ conversationId: conversation._id })
       .sort({ createdAt: 1 })

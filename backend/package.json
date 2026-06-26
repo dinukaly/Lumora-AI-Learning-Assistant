@@ -18,6 +18,7 @@
     "verify:t35": "tsx scripts/verify-document-ready-notification.ts",
     "verify:t42": "tsx scripts/verify-ai-orchestrator.ts",
     "verify:t43": "tsx scripts/verify-conversations.ts",
+    "verify:t44": "tsx scripts/verify-ai-chat.ts",
     "format": "prettier --write src/**/*.ts"
   },
   "dependencies": {
