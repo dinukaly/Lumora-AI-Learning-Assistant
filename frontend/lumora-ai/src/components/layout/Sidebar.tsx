@@ -1,4 +1,4 @@
-import { BookOpen, GraduationCap, LayoutDashboard, User, LogOut, X } from "lucide-react";
+import { BookOpen, Brain, GraduationCap, LayoutDashboard, User, LogOut, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useAppDispatch } from "@/app/hooks";
 import { logout } from "@/features/auth/authSlice";
@@ -9,6 +9,7 @@ const sidebarNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
   { to: "/documents", label: "Documents", icon: BookOpen },
   { to: "/flashcards", label: "Flashcards", icon: GraduationCap },
+  { to: "/quizzes", label: "Quizzes", icon: Brain },
   { to: "/profile", label: "Profile", icon: User },
 ];
 

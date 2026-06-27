@@ -1,6 +1,11 @@
 import mongoose, { Schema, Document } from 'mongoose';
 
-export type JobType = 'TEXT_EXTRACTION' | 'CHUNKING_EMBEDDING' | 'SUMMARY_GENERATION';
+export type JobType =
+  | 'TEXT_EXTRACTION'
+  | 'CHUNKING_EMBEDDING'
+  | 'SUMMARY_GENERATION'
+  | 'FLASHCARD_GENERATION'
+  | 'QUIZ_GENERATION';
 
 export type JobStatus = 'QUEUED' | 'RUNNING' | 'COMPLETED' | 'FAILED' | 'RETRYING';
 
@@ -20,7 +25,7 @@ const JobSchema: Schema = new Schema(
   {
     type: { 
       type: String, 
-      enum: ['TEXT_EXTRACTION', 'CHUNKING_EMBEDDING', 'SUMMARY_GENERATION'], 
+      enum: ['TEXT_EXTRACTION', 'CHUNKING_EMBEDDING', 'SUMMARY_GENERATION', 'FLASHCARD_GENERATION', 'QUIZ_GENERATION'], 
       required: true 
     },
     status: { 

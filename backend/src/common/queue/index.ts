@@ -6,6 +6,8 @@ import JobModel from '../../modules/jobs/job.model.js';
 export const DOCUMENT_QUEUE_NAME = 'document-processing';
 export const TEXT_EXTRACTION_JOB = 'TEXT_EXTRACTION';
 export const CHUNKING_EMBEDDING_JOB = 'CHUNKING_EMBEDDING';
+export const FLASHCARD_GENERATION_JOB = 'FLASHCARD_GENERATION';
+export const QUIZ_GENERATION_JOB = 'QUIZ_GENERATION';
 
 export interface TextExtractionJobData {
   documentId: string;
@@ -18,7 +20,28 @@ export interface ChunkingEmbeddingJobData {
   jobRecordId: string;
 }
 
-export type DocumentQueueJobData = TextExtractionJobData | ChunkingEmbeddingJobData;
+export interface FlashcardGenerationJobData {
+  userId: string;
+  documentId: string;
+  jobRecordId: string;
+  count: number;
+  topic?: string;
+}
+
+export interface QuizGenerationJobData {
+  userId: string;
+  documentId: string;
+  jobRecordId: string;
+  questionCount: number;
+  difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+  topic?: string;
+}
+
+export type DocumentQueueJobData =
+  | TextExtractionJobData
+  | ChunkingEmbeddingJobData
+  | FlashcardGenerationJobData
+  | QuizGenerationJobData;
 
 export const redisConnection: ConnectionOptions = {
   host: config.redis.host,
@@ -131,5 +154,94 @@ export async function enqueueChunkingEmbedding(documentId: string) {
     jobRecord.error = error instanceof Error ? error.message : 'Failed to enqueue chunking job';
     await jobRecord.save();
     throw error;
+  }
+}
+
+export async function enqueueFlashcardGeneration(input: {
+  userId: string;
+  documentId: string;
+  count: number;
+  topic?: string;
+}) {
+  const objectId = new mongoose.Types.ObjectId(input.documentId);
+  const jobRecord = await JobModel.create({
+    type: FLASHCARD_GENERATION_JOB,
+    status: 'QUEUED',
+    progress: 0,
+    documentId: objectId,
+  });
+
+  try {
+    const bullJob = await getDocumentQueue().add(
+      FLASHCARD_GENERATION_JOB,
+      {
+        userId: input.userId,
+        documentId: input.documentId,
+        jobRecordId: jobRecord.id,
+        count: input.count,
+        topic: input.topic,
+      },
+      {
+        jobId: `flashcard-generation-${input.documentId}-${jobRecord.id}`,
+      },
+    );
+
+    jobRecord.bullJobId = bullJob.id;
+    await jobRecord.save();
+    return jobRecord;
+  } catch (error) {
+    jobRecord.status = 'FAILED';
+    jobRecord.error = error instanceof Error ? error.message : 'Failed to enqueue flashcard generation';
+    await jobRecord.save();
+    throw error;
+  }
+}
+
+export async function enqueueQuizGeneration(input: {
+  userId: string;
+  documentId: string;
+  questionCount: number;
+  difficulty?: 'EASY' | 'MEDIUM' | 'HARD';
+  topic?: string;
+}) {
+  const objectId = new mongoose.Types.ObjectId(input.documentId);
+  const jobRecord = await JobModel.create({
+    type: QUIZ_GENERATION_JOB,
+    status: 'QUEUED',
+    progress: 0,
+    documentId: objectId,
+  });
+
+  try {
+    const bullJob = await getDocumentQueue().add(
+      QUIZ_GENERATION_JOB,
+      {
+        userId: input.userId,
+        documentId: input.documentId,
+        jobRecordId: jobRecord.id,
+        questionCount: input.questionCount,
+        difficulty: input.difficulty,
+        topic: input.topic,
+      },
+      {
+        jobId: `quiz-generation-${input.documentId}-${jobRecord.id}`,
+      },
+    );
+
+    jobRecord.bullJobId = bullJob.id;
+    await jobRecord.save();
+    return jobRecord;
+  } catch (error) {
+    jobRecord.status = 'FAILED';
+    jobRecord.error = error instanceof Error ? error.message : 'Failed to enqueue quiz generation';
+    await jobRecord.save();
+    throw error;
+  }
+}
+
+export async function closeDocumentQueue() {
+  if (documentQueueInstance) {
+    await documentQueueInstance.close();
+    documentQueueInstance = null;
   }
 }

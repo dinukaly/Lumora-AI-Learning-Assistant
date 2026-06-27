@@ -5,5 +5,7 @@ import { AIController } from './ai.controller.js';
 const router = Router();
 
 router.post('/chat', requireAuth, AIController.chat);
+router.post('/generate-flashcards', requireAuth, AIController.generateFlashcards);
+router.post('/generate-quiz', requireAuth, AIController.generateQuiz);
 
 export default router;

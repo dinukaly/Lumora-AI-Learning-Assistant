@@ -70,6 +70,37 @@ class MockChatProvider implements ChatProvider {
 
   async generateJSON<T>(prompt: string, _schema: string): Promise<T> {
     void _schema;
+    const requestedCountMatch = prompt.match(/\[Requested Count\]\s*(\d+)/i);
+    const requestedCount = requestedCountMatch ? Math.max(1, Number.parseInt(requestedCountMatch[1], 10)) : 3;
+
+    if (/flashcard/i.test(prompt)) {
+      return {
+        flashcards: Array.from({ length: Math.min(requestedCount, 5) }, (_, index) => ({
+          front: `Flashcard ${index + 1}: What is the key concept?`,
+          back: `Mock answer ${index + 1} based on the provided document chunks.`,
+          difficulty: index % 3 === 0 ? 'EASY' : index % 3 === 1 ? 'MEDIUM' : 'HARD',
+          sourceChunkIndex: index,
+        })),
+      } as T;
+    }
+
+    if (/multiple-choice quiz|quiz/i.test(prompt)) {
+      return {
+        title: 'Mock Quiz',
+        questions: Array.from({ length: Math.min(requestedCount, 6) }, (_, index) => ({
+          question: `Question ${index + 1}: What is the correct concept?`,
+          options: [
+            `Option A${index + 1}`,
+            `Option B${index + 1}`,
+            `Option C${index + 1}`,
+            `Option D${index + 1}`,
+          ],
+          correctIndex: index % 4,
+          explanation: `Mock explanation ${index + 1}.`,
+        })),
+      } as T;
+    }
+
     return JSON.parse(`{"mock": true, "query": "${prompt.slice(0, 20)}"}`) as T;
   }
 
