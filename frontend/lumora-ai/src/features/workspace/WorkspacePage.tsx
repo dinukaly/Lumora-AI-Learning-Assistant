@@ -13,6 +13,7 @@ import {
   Sparkles,
 } from 'lucide-react'
 import { useGetDocumentQuery, type DocumentData } from '@/features/documents/documentsApi'
+import WorkspaceChatTab from '@/features/workspace/chat/WorkspaceChatTab'
 import { useAppSelector } from '@/app/hooks'
 import { Button } from '@/components/ui/button'
 import {
@@ -331,16 +332,7 @@ export default function WorkspacePage() {
   } else if (activeTab === 'content') {
     mainContent = <WorkspaceContentTab document={document} />
   } else if (activeTab === 'chat') {
-    mainContent = (
-      <WorkspacePlaceholder
-        title="Chat tab is next"
-        description="This workspace shell is ready for the grounded chat experience in the next task."
-        bullets={[
-          'Document-aware conversation UI will land in the Chat tab.',
-          'Citations and grounded responses will connect here once the chat endpoint is implemented.',
-        ]}
-      />
-    )
+    mainContent = <WorkspaceChatTab document={document} />
   } else if (activeTab === 'actions') {
     mainContent = (
       <WorkspacePlaceholder
