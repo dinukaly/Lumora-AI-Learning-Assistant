@@ -20,6 +20,7 @@
     "verify:t43": "tsx scripts/verify-conversations.ts",
     "verify:t44": "tsx scripts/verify-ai-chat.ts",
     "verify:t51": "tsx scripts/verify-flashcards.ts",
+    "verify:t53": "tsx scripts/verify-quizzes.ts",
     "format": "prettier --write src/**/*.ts"
   },
   "dependencies": {
