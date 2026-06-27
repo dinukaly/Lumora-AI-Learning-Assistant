@@ -10,6 +10,8 @@ import DocumentChunk from './document-chunk.model.js';
 import Conversation from '../conversations/conversation.model.js';
 import Message from '../conversations/message.model.js';
 import Flashcard from '../learning/flashcard.model.js';
+import Quiz from '../learning/quiz.model.js';
+import QuizAttempt from '../learning/quiz-attempt.model.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -287,11 +289,17 @@ export class DocumentsService {
     const key = resolveStorageKey(document);
     const conversations = await Conversation.find({ documentId: document._id }).select('_id').lean();
     const conversationIds = conversations.map((conversation) => conversation._id);
+    const quizzes = await Quiz.find({ documentId: document._id }).select('_id').lean();
+    const quizIds = quizzes.map((quiz) => quiz._id);
 
     await Promise.all([
       storageProvider.delete(key),
       DocumentChunk.deleteMany({ documentId: document._id }),
       Flashcard.deleteMany({ documentId: document._id }),
+      Quiz.deleteMany({ documentId: document._id }),
+      quizIds.length > 0
+        ? QuizAttempt.deleteMany({ quizId: { $in: quizIds } })
+        : Promise.resolve(),
       Conversation.deleteMany({ documentId: document._id }),
       conversationIds.length > 0
         ? Message.deleteMany({ conversationId: { $in: conversationIds } })
