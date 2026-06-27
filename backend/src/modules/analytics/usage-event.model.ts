@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export type UsageActionType =
   | 'CHAT'
   | 'EXPLAIN_CONCEPT'
+  | 'EXTRACT_CONCEPTS'
   | 'SUMMARIZE_DOCUMENT'
   | 'GENERATE_FLASHCARDS'
   | 'GENERATE_QUIZ'
@@ -23,7 +24,7 @@ const UsageEventSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     actionType: {
       type: String,
-      enum: ['CHAT', 'EXPLAIN_CONCEPT', 'SUMMARIZE_DOCUMENT', 'GENERATE_FLASHCARDS', 'GENERATE_QUIZ', 'PROCESSING'],
+      enum: ['CHAT', 'EXPLAIN_CONCEPT', 'EXTRACT_CONCEPTS', 'SUMMARIZE_DOCUMENT', 'GENERATE_FLASHCARDS', 'GENERATE_QUIZ', 'PROCESSING'],
       required: true,
     },
     tokensUsed: { type: Number, required: true, min: 0 },

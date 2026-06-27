@@ -73,6 +73,36 @@ class MockChatProvider implements ChatProvider {
     const requestedCountMatch = prompt.match(/\[Requested Count\]\s*(\d+)/i);
     const requestedCount = requestedCountMatch ? Math.max(1, Number.parseInt(requestedCountMatch[1], 10)) : 3;
 
+    if (/\"summary\"\s*:\s*\"string\"/i.test(prompt) || /summarize the document/i.test(prompt)) {
+      return {
+        summary: 'Mock summary based on the provided document context.',
+        takeaways: [
+          'Mock takeaway 1 from the document.',
+          'Mock takeaway 2 from the document.',
+          'Mock takeaway 3 from the document.',
+        ],
+      } as T;
+    }
+
+    if (/\"concepts\"\s*:\s*\[/i.test(prompt) || /extract the most important concepts/i.test(prompt)) {
+      return {
+        concepts: [
+          {
+            title: 'Mock Concept 1',
+            description: 'A short grounded explanation for the first mock concept.',
+          },
+          {
+            title: 'Mock Concept 2',
+            description: 'A short grounded explanation for the second mock concept.',
+          },
+          {
+            title: 'Mock Concept 3',
+            description: 'A short grounded explanation for the third mock concept.',
+          },
+        ],
+      } as T;
+    }
+
     if (/flashcard/i.test(prompt)) {
       return {
         flashcards: Array.from({ length: Math.min(requestedCount, 5) }, (_, index) => ({

@@ -42,12 +42,14 @@ export interface AIOrchestrator {
     query: string,
     documentId: string,
     topK: number,
+    options?: { fallbackToDocumentStart?: boolean },
   ): Promise<DocumentChunkSearchResult[]>;
   buildPrompt(action: AIAction, context: AIContext): string;
   detectIntent(query: string): Promise<AIAction>;
   assembleContext(input: {
     conversationId?: string;
     documentId: string;
+    queryScope: 'DOCUMENT' | 'ASSISTANT_META' | 'GENERAL';
     userMessage: string;
     chunks: DocumentChunkSearchResult[];
   }): Promise<AIContext>;
@@ -76,6 +78,8 @@ const SYSTEM_PROMPTS: Record<AIAction, string> = {
   CHAT: 'You are Lumora, an AI tutor helping the user learn from their document.',
   EXPLAIN_CONCEPT:
     'You are Lumora, an AI tutor. Explain the concept clearly using only the provided document context.',
+  EXTRACT_CONCEPTS:
+    'You are Lumora, an AI tutor. Extract the most important concepts from the document using only the provided context.',
   SUMMARIZE_DOCUMENT:
     'You are Lumora, an AI tutor. Summarize the document using only the provided context.',
   GENERATE_FLASHCARDS:

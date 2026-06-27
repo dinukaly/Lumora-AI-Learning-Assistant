@@ -1,13 +1,16 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../common/middleware/auth.js';
 import { AIChatService } from './ai-chat.service.js';
+import { AIActionsService } from './ai-actions.service.js';
 import { FlashcardJobService } from '../learning/flashcard-job.service.js';
 import { QuizJobService } from '../learning/quiz-job.service.js';
 
 const chatService = new AIChatService();
+const aiActionsService = new AIActionsService();
 const VALID_ACTIONS = new Set([
   'CHAT',
   'EXPLAIN_CONCEPT',
+  'EXTRACT_CONCEPTS',
   'SUMMARIZE_DOCUMENT',
   'GENERATE_FLASHCARDS',
   'GENERATE_QUIZ',
@@ -156,6 +159,62 @@ export class AIController {
       if (
         error.message === 'Invalid document ID'
         || error.message === 'Document is not ready for quiz generation'
+      ) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: error.message } });
+      }
+      if (error.message === 'Document not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+    }
+  }
+
+  static async summarizeDocument(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user!.userId;
+      const { documentId } = req.body ?? {};
+
+      if (typeof documentId !== 'string' || !documentId.trim()) {
+        return res.status(400).json({
+          error: { code: 'VALIDATION_ERROR', message: 'documentId is required' },
+        });
+      }
+
+      const result = await aiActionsService.summarizeDocument(userId, documentId.trim());
+      return res.status(200).json(result);
+    } catch (error: any) {
+      if (
+        error.message === 'Invalid document ID'
+        || error.message === 'Document is not ready for AI actions'
+      ) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: error.message } });
+      }
+      if (error.message === 'Document not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+    }
+  }
+
+  static async extractConcepts(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user!.userId;
+      const { documentId } = req.body ?? {};
+
+      if (typeof documentId !== 'string' || !documentId.trim()) {
+        return res.status(400).json({
+          error: { code: 'VALIDATION_ERROR', message: 'documentId is required' },
+        });
+      }
+
+      const result = await aiActionsService.extractConcepts(userId, documentId.trim());
+      return res.status(200).json(result);
+    } catch (error: any) {
+      if (
+        error.message === 'Invalid document ID'
+        || error.message === 'Document is not ready for AI actions'
       ) {
         return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: error.message } });
       }

@@ -48,6 +48,7 @@ export interface Citation {
 export type AIAction =
   | 'CHAT'
   | 'EXPLAIN_CONCEPT'
+  | 'EXTRACT_CONCEPTS'
   | 'SUMMARIZE_DOCUMENT'
   | 'GENERATE_FLASHCARDS'
   | 'GENERATE_QUIZ';
