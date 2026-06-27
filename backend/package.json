@@ -19,6 +19,7 @@
     "verify:t42": "tsx scripts/verify-ai-orchestrator.ts",
     "verify:t43": "tsx scripts/verify-conversations.ts",
     "verify:t44": "tsx scripts/verify-ai-chat.ts",
+    "verify:t51": "tsx scripts/verify-flashcards.ts",
     "format": "prettier --write src/**/*.ts"
   },
   "dependencies": {
