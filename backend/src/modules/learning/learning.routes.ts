@@ -6,5 +6,8 @@ const router = Router();
 
 router.get('/flashcards', requireAuth, LearningController.listFlashcards);
 router.post('/flashcards/:id/review', requireAuth, LearningController.reviewFlashcard);
+router.get('/quizzes', requireAuth, LearningController.listQuizzes);
+router.get('/quizzes/:id', requireAuth, LearningController.getQuizById);
+router.post('/quizzes/:id/submit', requireAuth, LearningController.submitQuiz);
 
 export default router;

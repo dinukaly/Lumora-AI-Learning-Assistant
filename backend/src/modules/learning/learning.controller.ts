@@ -61,4 +61,63 @@ export class LearningController {
       res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
     }
   }
+
+  static async listQuizzes(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user!.userId;
+      const documentId = req.query.documentId as string | undefined;
+      const result = await LearningService.listQuizzes(userId, { documentId });
+      res.status(200).json(result);
+    } catch (error: any) {
+      if (error.message === 'Invalid document ID') {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: error.message } });
+      }
+      if (error.message === 'Document not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+    }
+  }
+
+  static async getQuizById(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user!.userId;
+      const quizId = req.params.id;
+      const result = await LearningService.getQuizById(userId, quizId);
+      res.status(200).json(result);
+    } catch (error: any) {
+      if (error.message === 'Invalid quiz ID') {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: error.message } });
+      }
+      if (error.message === 'Quiz not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+    }
+  }
+
+  static async submitQuiz(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user!.userId;
+      const quizId = req.params.id;
+      const answers = req.body?.answers;
+      const result = await LearningService.submitQuiz(userId, quizId, answers);
+      res.status(200).json(result);
+    } catch (error: any) {
+      if (
+        error.message === 'Invalid quiz ID'
+        || error.message === 'Answers must be an array of option indices'
+        || error.message === 'Answer count must match total quiz questions'
+      ) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: error.message } });
+      }
+      if (error.message === 'Quiz not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+    }
+  }
 }
