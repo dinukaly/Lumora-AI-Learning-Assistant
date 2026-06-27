@@ -20,6 +20,7 @@ export interface AIContext {
   documentTitle: string;
   documentSummary?: string;
   conversationSummary?: string;
+  queryScope: 'DOCUMENT' | 'ASSISTANT_META' | 'GENERAL';
   recentMessages: Array<{
     role: 'user' | 'assistant' | 'system';
     content: string;
@@ -72,7 +73,7 @@ const INTENT_PATTERNS: Array<{ action: AIAction; pattern: RegExp }> = [
 ];
 
 const SYSTEM_PROMPTS: Record<AIAction, string> = {
-  CHAT: 'You are Lumora, an AI tutor. Answer the user using only the provided document context.',
+  CHAT: 'You are Lumora, an AI tutor helping the user learn from their document.',
   EXPLAIN_CONCEPT:
     'You are Lumora, an AI tutor. Explain the concept clearly using only the provided document context.',
   SUMMARIZE_DOCUMENT:
@@ -135,10 +136,33 @@ export class AIService implements AIOrchestrator {
     }
 
     const action = request.action ?? await this.detectIntent(request.message);
-    const retrievedChunks = await this.searchChunks(request.message, request.documentId, 5);
+    const initialQueryScope = classifyQueryScope(request.message, action);
+    let retrievedChunks = initialQueryScope === 'ASSISTANT_META'
+      ? []
+      : await this.searchChunks(request.message, request.documentId, 5, {
+        fallbackToDocumentStart: action === 'SUMMARIZE_DOCUMENT',
+      });
+
+    if (
+      action === 'CHAT'
+      && initialQueryScope !== 'DOCUMENT'
+      && !retrievedChunks.some((chunk) => chunkHasKeywordOverlap(request.message, chunk.text))
+    ) {
+      retrievedChunks = [];
+    }
+
+    const queryScope = action !== 'CHAT'
+      ? 'DOCUMENT'
+      : initialQueryScope === 'ASSISTANT_META'
+        ? 'ASSISTANT_META'
+        : retrievedChunks.length > 0
+          ? 'DOCUMENT'
+          : 'GENERAL';
+
     const context = await this.assembleContext({
       conversationId: request.conversationId,
       documentId: request.documentId,
+      queryScope,
       userMessage: request.message,
       chunks: retrievedChunks,
     });
@@ -156,6 +180,7 @@ export class AIService implements AIOrchestrator {
     query: string,
     documentId: string,
     topK: number,
+    options: { fallbackToDocumentStart?: boolean } = {},
   ): Promise<DocumentChunkSearchResult[]> {
     try {
       const vectorResults = await searchDocumentChunksByQuery(query, {
@@ -170,7 +195,7 @@ export class AIService implements AIOrchestrator {
       // Fall through to lexical retrieval when vector search is unavailable.
     }
 
-    return searchDocumentChunksByKeyword(query, documentId, topK);
+    return searchDocumentChunksByKeyword(query, documentId, topK, options);
   }
 
   buildPrompt(action: AIAction, context: AIContext): string {
@@ -194,17 +219,18 @@ export class AIService implements AIOrchestrator {
           )
           .join('\n\n')
       : '[No relevant chunks were retrieved for this question.]';
+    const rules = buildPromptRules(action, context);
 
     return [
       systemPrompt,
       'Rules:',
-      '- Use only the provided document context.',
-      '- If the answer is not supported by the context, say the document does not cover it.',
-      '- Cite the page number when you rely on a chunk.',
+      ...rules,
       '',
       `[Conversation Id]\n${context.conversationId}`,
       '',
       `[Document Title]\n${context.documentTitle}`,
+      '',
+      `[Query Scope]\n${context.queryScope}`,
       summaryBlock,
       conversationSummaryBlock,
       '[Recent Messages]',
@@ -231,6 +257,7 @@ export class AIService implements AIOrchestrator {
   async assembleContext(input: {
     conversationId?: string;
     documentId: string;
+    queryScope: 'DOCUMENT' | 'ASSISTANT_META' | 'GENERAL';
     userMessage: string;
     chunks: DocumentChunkSearchResult[];
   }): Promise<AIContext> {
@@ -256,6 +283,7 @@ export class AIService implements AIOrchestrator {
       documentTitle: document.title,
       documentSummary: document.summary?.text,
       conversationSummary: undefined,
+      queryScope: input.queryScope,
       recentMessages: recentMessages.reverse().map((message) => ({
         role: message.role,
         content: message.content,
@@ -287,6 +315,7 @@ async function searchDocumentChunksByKeyword(
   query: string,
   documentId: string,
   topK: number,
+  options: { fallbackToDocumentStart?: boolean } = {},
 ): Promise<DocumentChunkSearchResult[]> {
   const keywords = tokenizeQuery(query);
   const chunks = await DocumentChunk.find({ documentId })
@@ -323,6 +352,10 @@ async function searchDocumentChunksByKeyword(
     return scored;
   }
 
+  if (!options.fallbackToDocumentStart) {
+    return [];
+  }
+
   return chunks
     .sort((left, right) => left.chunkIndex - right.chunkIndex)
     .slice(0, topK)
@@ -352,3 +385,72 @@ function tokenizeQuery(query: string) {
 function countOccurrences(haystack: string, needle: string) {
   return haystack.split(needle).length - 1;
 }
+
+function classifyQueryScope(
+  query: string,
+  action: AIAction,
+): 'DOCUMENT' | 'ASSISTANT_META' | 'GENERAL' {
+  if (action !== 'CHAT') {
+    return 'DOCUMENT';
+  }
+
+  if (ASSISTANT_META_PATTERN.test(query)) {
+    return 'ASSISTANT_META';
+  }
+
+  if (DOCUMENT_REFERENCE_PATTERN.test(query)) {
+    return 'DOCUMENT';
+  }
+
+  return 'GENERAL';
+}
+
+function chunkHasKeywordOverlap(query: string, chunkText: string) {
+  const keywords = tokenizeQuery(query);
+  if (keywords.length === 0) {
+    return false;
+  }
+
+  const haystack = chunkText.toLowerCase();
+  return keywords.some((keyword) => haystack.includes(keyword));
+}
+
+function buildPromptRules(action: AIAction, context: AIContext) {
+  if (action !== 'CHAT') {
+    return [
+      '- Use only the provided document context.',
+      '- If the answer is not supported by the context, say the document does not cover it.',
+      '- Cite the page number when you rely on a chunk.',
+    ];
+  }
+
+  if (context.queryScope === 'ASSISTANT_META') {
+    return [
+      '- The user is greeting you or asking about your role/capabilities.',
+      '- Reply naturally and briefly in 1-2 sentences.',
+      '- Do not pretend the answer comes from the document.',
+      '- Do not cite document pages unless you actually rely on document context.',
+    ];
+  }
+
+  if (context.queryScope === 'GENERAL') {
+    return [
+      '- No relevant document support was found for this request.',
+      '- Briefly say you could not find that answer in this document.',
+      '- Invite the user to ask about the document, its concepts, or cited pages.',
+      '- Do not cite document pages when no relevant chunks were retrieved.',
+    ];
+  }
+
+  return [
+    '- Use only the provided document context.',
+    '- If the answer is not supported by the context, say the document does not cover it.',
+    '- Cite the page number when you rely on a chunk.',
+  ];
+}
+
+const ASSISTANT_META_PATTERN =
+  /\b(hello|hi|hey|yo|good morning|good afternoon|good evening|thanks|thank you|who are you|what are you|are you (?:a )?real ai|are you real|are you an? ai|what can you do|how can you help|your role|your name)\b/i;
+
+const DOCUMENT_REFERENCE_PATTERN =
+  /\b(document|pdf|notes?|chapter|section|page|pages|text|passage|according to|from this|in this)\b/i;
