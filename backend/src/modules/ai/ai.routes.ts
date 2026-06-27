@@ -5,6 +5,7 @@ import { AIController } from './ai.controller.js';
 const router = Router();
 
 router.post('/chat', requireAuth, AIController.chat);
+router.get('/actions/latest', requireAuth, AIController.getLatestActions);
 router.post('/summarize-document', requireAuth, AIController.summarizeDocument);
 router.post('/extract-concepts', requireAuth, AIController.extractConcepts);
 router.post('/generate-flashcards', requireAuth, AIController.generateFlashcards);

@@ -225,6 +225,34 @@ export class AIController {
       res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
     }
   }
+
+  static async getLatestActions(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user!.userId;
+      const documentId = req.query.documentId as string | undefined;
+
+      if (typeof documentId !== 'string' || !documentId.trim()) {
+        return res.status(400).json({
+          error: { code: 'VALIDATION_ERROR', message: 'documentId is required' },
+        });
+      }
+
+      const result = await aiActionsService.getLatestActions(userId, documentId.trim());
+      return res.status(200).json(result);
+    } catch (error: any) {
+      if (
+        error.message === 'Invalid document ID'
+        || error.message === 'Document is not ready for AI actions'
+      ) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: error.message } });
+      }
+      if (error.message === 'Document not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+    }
+  }
 }
 
 function writeSseEvent(res: Response, event: string, data: unknown) {

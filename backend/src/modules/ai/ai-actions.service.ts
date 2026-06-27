@@ -4,6 +4,7 @@ import { getAIOrchestrator } from './ai.service.js';
 import { getChatProvider } from './ai.config.js';
 import type { Citation } from './ai-providers.js';
 import type { DocumentChunkSearchResult } from '../documents/document-vector-search.service.js';
+import AIActionArtifact from './ai-action-artifact.model.js';
 
 interface SummaryPayload {
   summary?: string;
@@ -31,6 +32,28 @@ export interface ExtractConceptsResult {
     description: string;
   }>;
   citations: Citation[];
+}
+
+export interface LatestAIActionsResult {
+  documentId: string;
+  summary: {
+    artifactId: string;
+    summary: string;
+    takeaways: string[];
+    citations: Citation[];
+    sourceChunkIds: string[];
+    createdAt: Date;
+  } | null;
+  concepts: {
+    artifactId: string;
+    concepts: Array<{
+      title: string;
+      description: string;
+    }>;
+    citations: Citation[];
+    sourceChunkIds: string[];
+    createdAt: Date;
+  } | null;
 }
 
 export class AIActionsService {
@@ -62,6 +85,17 @@ export class AIActionsService {
     if (!summary) {
       throw new Error('AI did not return a usable document summary');
     }
+
+    await AIActionArtifact.create({
+      userId: new mongoose.Types.ObjectId(userId),
+      documentId: new mongoose.Types.ObjectId(documentId),
+      actionType: 'SUMMARY',
+      createdBy: 'AI',
+      summary,
+      takeaways: normalizeTakeaways(response.takeaways),
+      citations,
+      sourceChunkIds: context.retrievedChunks.map((chunk) => new mongoose.Types.ObjectId(chunk.chunkId)),
+    });
 
     return {
       documentId,
@@ -98,10 +132,58 @@ export class AIActionsService {
       throw new Error('AI did not return any usable concepts');
     }
 
+    await AIActionArtifact.create({
+      userId: new mongoose.Types.ObjectId(userId),
+      documentId: new mongoose.Types.ObjectId(documentId),
+      actionType: 'CONCEPTS',
+      createdBy: 'AI',
+      concepts,
+      citations,
+      sourceChunkIds: context.retrievedChunks.map((chunk) => new mongoose.Types.ObjectId(chunk.chunkId)),
+    });
+
     return {
       documentId,
       concepts,
       citations,
+    };
+  }
+
+  async getLatestActions(userId: string, documentId: string): Promise<LatestAIActionsResult> {
+    await assertReadyOwnedDocument(documentId, userId);
+
+    const artifacts = await AIActionArtifact.find({
+      userId: new mongoose.Types.ObjectId(userId),
+      documentId: new mongoose.Types.ObjectId(documentId),
+      actionType: { $in: ['SUMMARY', 'CONCEPTS'] },
+    })
+      .sort({ createdAt: -1 })
+      .lean();
+
+    const latestSummary = artifacts.find((artifact) => artifact.actionType === 'SUMMARY') ?? null;
+    const latestConcepts = artifacts.find((artifact) => artifact.actionType === 'CONCEPTS') ?? null;
+
+    return {
+      documentId,
+      summary: latestSummary
+        ? {
+          artifactId: latestSummary._id.toString(),
+          summary: latestSummary.summary ?? '',
+          takeaways: latestSummary.takeaways ?? [],
+          citations: normalizeStoredCitations(latestSummary.citations),
+          sourceChunkIds: (latestSummary.sourceChunkIds ?? []).map((id) => id.toString()),
+          createdAt: latestSummary.createdAt,
+        }
+        : null,
+      concepts: latestConcepts
+        ? {
+          artifactId: latestConcepts._id.toString(),
+          concepts: latestConcepts.concepts ?? [],
+          citations: normalizeStoredCitations(latestConcepts.citations),
+          sourceChunkIds: (latestConcepts.sourceChunkIds ?? []).map((id) => id.toString()),
+          createdAt: latestConcepts.createdAt,
+        }
+        : null,
     };
   }
 
@@ -191,4 +273,22 @@ function normalizeConcepts(concepts: ConceptPayload['concepts']) {
     })
     .filter((concept): concept is NonNullable<typeof concept> => concept !== null)
     .slice(0, 6);
+}
+
+function normalizeStoredCitations(citations: Array<{
+  chunkId: mongoose.Types.ObjectId;
+  documentId: mongoose.Types.ObjectId;
+  pageNumber: number;
+  snippet: string;
+}> | undefined): Citation[] {
+  if (!Array.isArray(citations)) {
+    return [];
+  }
+
+  return citations.map((citation) => ({
+    chunkId: citation.chunkId.toString(),
+    documentId: citation.documentId.toString(),
+    pageNumber: citation.pageNumber,
+    snippet: citation.snippet,
+  }));
 }
