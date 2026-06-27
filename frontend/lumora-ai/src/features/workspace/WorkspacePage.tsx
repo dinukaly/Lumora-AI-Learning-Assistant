@@ -15,6 +15,7 @@ import {
 import { useGetDocumentQuery, type DocumentData } from '@/features/documents/documentsApi'
 import WorkspaceChatTab from '@/features/workspace/chat/WorkspaceChatTab'
 import WorkspaceFlashcardsTab from '@/features/workspace/flashcards/WorkspaceFlashcardsTab'
+import WorkspaceQuizzesTab from '@/features/workspace/quizzes/WorkspaceQuizzesTab'
 import { useAppSelector } from '@/app/hooks'
 import { Button } from '@/components/ui/button'
 import {
@@ -348,16 +349,7 @@ export default function WorkspacePage() {
   } else if (activeTab === 'flashcards') {
     mainContent = <WorkspaceFlashcardsTab document={document} />
   } else {
-    mainContent = (
-      <WorkspacePlaceholder
-        title="Quizzes tab prepared"
-        description="Quiz generation and review will connect into this tab in the next learning tasks."
-        bullets={[
-          'Document-specific quizzes will live here.',
-          'The tab exists now so navigation and layout are already stable.',
-        ]}
-      />
-    )
+    mainContent = <WorkspaceQuizzesTab document={document} />
   }
 
   return (
