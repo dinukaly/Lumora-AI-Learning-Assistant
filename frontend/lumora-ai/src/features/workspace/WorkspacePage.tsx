@@ -16,6 +16,7 @@ import { useGetDocumentQuery, type DocumentData } from '@/features/documents/doc
 import WorkspaceChatTab from '@/features/workspace/chat/WorkspaceChatTab'
 import WorkspaceFlashcardsTab from '@/features/workspace/flashcards/WorkspaceFlashcardsTab'
 import WorkspaceQuizzesTab from '@/features/workspace/quizzes/WorkspaceQuizzesTab'
+import WorkspaceActionsTab from '@/features/workspace/actions/WorkspaceActionsTab'
 import { useAppSelector } from '@/app/hooks'
 import { Button } from '@/components/ui/button'
 import {
@@ -88,32 +89,6 @@ function formatDate(dateStr: string) {
     day: 'numeric',
     year: 'numeric',
   })
-}
-
-function WorkspacePlaceholder({
-  title,
-  description,
-  bullets,
-}: {
-  title: string
-  description: string
-  bullets: string[]
-}) {
-  return (
-    <Card className="border-dashed">
-      <CardHeader>
-        <CardTitle>{title}</CardTitle>
-        <CardDescription>{description}</CardDescription>
-      </CardHeader>
-      <CardContent className="space-y-3 text-sm text-gray-600">
-        {bullets.map((bullet) => (
-          <div key={bullet} className="rounded-lg bg-gray-50 px-4 py-3">
-            {bullet}
-          </div>
-        ))}
-      </CardContent>
-    </Card>
-  )
 }
 
 function WorkspaceContentTab({ document }: { document: DocumentData }) {
@@ -336,16 +311,7 @@ export default function WorkspacePage() {
   } else if (activeTab === 'chat') {
     mainContent = <WorkspaceChatTab document={document} />
   } else if (activeTab === 'actions') {
-    mainContent = (
-      <WorkspacePlaceholder
-        title="AI Actions are staged"
-        description="Summary and extraction tools will plug into this panel in the upcoming workspace tasks."
-        bullets={[
-          'Quick actions will run summaries and concept extraction here.',
-          'This area is intentionally reserved so the tabbed flow is in place now.',
-        ]}
-      />
-    )
+    mainContent = <WorkspaceActionsTab document={document} />
   } else if (activeTab === 'flashcards') {
     mainContent = <WorkspaceFlashcardsTab document={document} />
   } else {
