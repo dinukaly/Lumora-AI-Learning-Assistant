@@ -110,8 +110,6 @@ export class QuizGenerationService {
     await callbacks.onGenerated?.();
 
     const sourceChunkIds = selectedChunks.map((chunk) => chunk._id);
-    await Quiz.deleteMany({ documentId: new mongoose.Types.ObjectId(input.documentId) });
-
     const quiz = await Quiz.create({
       documentId: new mongoose.Types.ObjectId(input.documentId),
       title: response.title?.trim() || `${document.title} Quiz`,
@@ -121,9 +119,11 @@ export class QuizGenerationService {
       difficulty: input.difficulty,
     });
 
-    await Document.findByIdAndUpdate(input.documentId, {
-      quizCount: 1,
+    const quizCount = await Quiz.countDocuments({
+      documentId: new mongoose.Types.ObjectId(input.documentId),
     });
+
+    await Document.findByIdAndUpdate(input.documentId, { quizCount });
 
     await callbacks.onStored?.();
 

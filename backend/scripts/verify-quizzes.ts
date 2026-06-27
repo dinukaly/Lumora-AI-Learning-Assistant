@@ -129,6 +129,30 @@ async function main() {
     const attemptCount = await QuizAttempt.countDocuments({ quizId: storedQuiz._id, userId: user._id });
     assert.equal(attemptCount, 1);
 
+    const secondEnqueueResponse = await fetch(`${baseUrl}/ai/generate-quiz`, {
+      method: 'POST',
+      headers,
+      body: JSON.stringify({
+        documentId: document.id,
+        questionCount: 3,
+        difficulty: 'EASY',
+        topic: 'React hooks',
+      }),
+    });
+    assert.equal(secondEnqueueResponse.status, 202);
+    const secondEnqueueJson = await secondEnqueueResponse.json();
+    assert.equal(typeof secondEnqueueJson.jobId, 'string');
+
+    const secondCompletedJob = await waitForCompletedJob(secondEnqueueJson.jobId);
+    assert.equal(secondCompletedJob.status, 'COMPLETED');
+
+    const secondListResponse = await fetch(`${baseUrl}/learning/quizzes?documentId=${document.id}`, {
+      headers: { Authorization: `Bearer ${accessToken}` },
+    });
+    assert.equal(secondListResponse.status, 200);
+    const secondListJson = await secondListResponse.json();
+    assert.equal(secondListJson.quizzes.length, 2);
+
     console.log(JSON.stringify({
       jobId: enqueueJson.jobId,
       quizId,
@@ -136,6 +160,8 @@ async function main() {
       submittedScore: submitJson.score,
       totalQuestions: submitJson.totalQuestions,
       attemptCount,
+      secondJobId: secondEnqueueJson.jobId,
+      listedQuizzesAfterRegeneration: secondListJson.quizzes.length,
     }, null, 2));
   } finally {
     await new Promise<void>((resolve, reject) => {

@@ -36,6 +36,11 @@ export function QuizzesExperience({
   const [answers, setAnswers] = useState<Record<number, number>>({})
   const [submittedResult, setSubmittedResult] = useState<QuizSubmissionResult | null>(null)
   const [difficulty, setDifficulty] = useState<QuizDifficulty>('MEDIUM')
+  const [pendingGeneratedQuiz, setPendingGeneratedQuiz] = useState<{
+    documentId: string
+    queuedAt: number
+    baselineQuizIds: string[]
+  } | null>(null)
 
   const { data: documentsData } = useListDocumentsQuery(undefined, {
     skip: embedded,
@@ -94,6 +99,62 @@ export function QuizzesExperience({
     setSubmittedResult(null)
   }, [selectedQuizId])
 
+  useEffect(() => {
+    if (!pendingGeneratedQuiz || !effectiveDocumentId || pendingGeneratedQuiz.documentId !== effectiveDocumentId) {
+      return
+    }
+
+    const createdAfterQueue = quizzes.find((quiz) => {
+      const createdAt = new Date(quiz.createdAt).getTime()
+      return (
+        !pendingGeneratedQuiz.baselineQuizIds.includes(quiz.id)
+        && createdAt >= pendingGeneratedQuiz.queuedAt - 1000
+      )
+    })
+
+    if (!createdAfterQueue) {
+      return
+    }
+
+    setSelectedQuizId(createdAfterQueue.id)
+    setPendingGeneratedQuiz(null)
+    dispatch(
+      enqueueToast({
+        id: `quiz-ready-${createdAfterQueue.id}`,
+        tone: 'success',
+        title: 'Quiz ready',
+        description: 'Your new quiz has been generated and loaded.',
+      }),
+    )
+  }, [dispatch, effectiveDocumentId, pendingGeneratedQuiz, quizzes])
+
+  useEffect(() => {
+    if (!pendingGeneratedQuiz || !effectiveDocumentId || pendingGeneratedQuiz.documentId !== effectiveDocumentId) {
+      return
+    }
+
+    const interval = window.setInterval(() => {
+      void quizzesQuery.refetch()
+    }, 2500)
+
+    const timeout = window.setTimeout(() => {
+      setPendingGeneratedQuiz(null)
+      dispatch(
+        enqueueToast({
+          id: `quiz-generate-timeout-${Date.now()}`,
+          tone: 'info',
+          title: 'Quiz is still processing',
+          description: 'Generation is taking longer than usual. You can refresh again in a moment.',
+        }),
+      )
+    }, 30000)
+
+    return () => {
+      window.clearInterval(interval)
+      window.clearTimeout(timeout)
+    }
+  }, [dispatch, effectiveDocumentId, pendingGeneratedQuiz, quizzesQuery])
+
   const answeredCount = Object.keys(answers).length
   const totalQuestions = quizDetailQuery.data?.questions.length ?? 0
   const interactionDisabled = selectedDocument?.status !== 'READY'
@@ -123,27 +184,38 @@ export function QuizzesExperience({
     }
 
     try {
+      const baselineQuizIds = quizzes
+        .filter((quiz) => quiz.documentId === effectiveDocumentId)
+        .map((quiz) => quiz.id)
       const result = await generateQuiz({
         documentId: effectiveDocumentId,
         questionCount: 8,
         difficulty,
       }).unwrap()
 
+      setPendingGeneratedQuiz({
+        documentId: effectiveDocumentId,
+        queuedAt: Date.now(),
+        baselineQuizIds,
+      })
+      await quizzesQuery.refetch()
+
       dispatch(
         enqueueToast({
           id: result.jobId,
           tone: 'info',
           title: 'Quiz generation queued',
-          description: 'Give it a moment, then refresh this view to load the new quiz.',
+          description: 'We’re watching for the generated quiz and will load it automatically.',
         }),
       )
     } catch (error) {
+      const errorMessage = getApiErrorMessage(error)
       dispatch(
         enqueueToast({
           id: `quiz-generate-error-${Date.now()}`,
           tone: 'error',
           title: 'Could not queue quiz',
-          description: error instanceof Error ? error.message : 'Please try again.',
+          description: errorMessage,
         }),
       )
     }
@@ -171,6 +243,7 @@ export function QuizzesExperience({
       }).unwrap()
 
       setSubmittedResult(result)
+      await quizzesQuery.refetch()
       dispatch(
         enqueueToast({
           id: `quiz-submit-${result.attemptId}`,
@@ -180,12 +253,21 @@ export function QuizzesExperience({
         }),
       )
     } catch (error) {
+      const errorMessage = getApiErrorMessage(error)
+
+      if (errorMessage === 'Quiz not found') {
+        setSelectedQuizId(null)
+        setSubmittedResult(null)
+        setAnswers({})
+        await quizzesQuery.refetch()
+      }
+
       dispatch(
         enqueueToast({
           id: `quiz-submit-error-${Date.now()}`,
           tone: 'error',
           title: 'Quiz submission failed',
-          description: error instanceof Error ? error.message : 'Please try again.',
+          description: errorMessage,
         }),
       )
     }
@@ -242,9 +324,10 @@ export function QuizzesExperience({
 
           <Button
             variant="outline"
-            onClick={() => {
-              void quizzesQuery.refetch()
-              if (selectedQuizId) {
+            onClick={async () => {
+              const refreshed = await quizzesQuery.refetch()
+              const refreshedQuizzes = refreshed.data?.quizzes ?? []
+              if (selectedQuizId && refreshedQuizzes.some((quiz) => quiz.id === selectedQuizId)) {
                 void quizDetailQuery.refetch()
               }
             }}
@@ -255,12 +338,12 @@ export function QuizzesExperience({
 
           <Button
             onClick={() => void handleGenerateQuiz()}
-            disabled={isGenerating || !effectiveDocumentId || interactionDisabled}
+            disabled={isGenerating || !!pendingGeneratedQuiz || !effectiveDocumentId || interactionDisabled}
           >
-            {isGenerating ? (
+            {isGenerating || pendingGeneratedQuiz ? (
               <>
                 <Loader2 className="h-4 w-4 animate-spin" />
-                Queueing...
+                {isGenerating ? 'Queueing...' : 'Generating...'}
               </>
             ) : (
               <>
@@ -315,6 +398,14 @@ export function QuizzesExperience({
                 <div className="flex items-center gap-2 text-sm text-gray-500">
                   <Loader2 className="h-4 w-4 animate-spin" />
                   Loading quizzes…
+                </div>
+              ) : pendingGeneratedQuiz ? (
+                <div className="rounded-2xl border border-emerald-200 bg-emerald-50 px-4 py-5 text-sm text-emerald-900">
+                  <div className="mb-2 flex items-center gap-2 font-medium">
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Generating a new quiz
+                  </div>
+                  We&apos;re checking for the finished quiz and will load it automatically.
                 </div>
               ) : quizzes.length > 0 ? (
                 quizzes.map((quiz) => (
@@ -620,6 +711,38 @@ function formatRelativeDate(dateString: string) {
     month: 'short',
     day: 'numeric',
   })
+}
+
+function getApiErrorMessage(error: unknown) {
+  if (
+    error
+    && typeof error === 'object'
+    && 'data' in error
+    && error.data
+    && typeof error.data === 'object'
+    && 'error' in error.data
+  ) {
+    const nestedError = error.data.error
+    if (
+      nestedError
+      && typeof nestedError === 'object'
+      && 'message' in nestedError
+      && typeof nestedError.message === 'string'
+    ) {
+      return nestedError.message
+    }
+  }
+
+  if (
+    error
+    && typeof error === 'object'
+    && 'message' in error
+    && typeof error.message === 'string'
+  ) {
+    return error.message
+  }
+
+  return 'Please try again.'
 }
 
 export default QuizzesExperience
