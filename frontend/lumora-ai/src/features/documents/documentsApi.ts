@@ -7,6 +7,7 @@ export interface DocumentData {
   ownerId: string
   title: string
   originalFileName: string
+  storageKey?: string
   storageUrl: string
   status: DocumentStatus
   pageCount?: number
@@ -17,6 +18,10 @@ export interface DocumentData {
   quizCount?: number
   createdAt: string
   updatedAt: string
+}
+
+interface DocumentDetailResponse {
+  document: DocumentData
 }
 
 interface DocumentsListResponse {
@@ -57,6 +62,7 @@ export const documentsApi = apiSlice.injectEndpoints({
 
     getDocument: builder.query<DocumentData, string>({
       query: (id) => `/documents/${id}`,
+      transformResponse: (response: DocumentDetailResponse) => response.document,
       providesTags: (_result, _error, id) => [{ type: 'Documents', id }],
     }),
 

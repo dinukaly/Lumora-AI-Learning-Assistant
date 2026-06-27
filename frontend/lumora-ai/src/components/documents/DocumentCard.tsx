@@ -1,4 +1,5 @@
 import { FileText, Loader2, AlertCircle, CheckCircle2, Upload, Trash2 } from 'lucide-react'
+import { Link } from 'react-router-dom'
 import type { DocumentData, DocumentStatus } from '@/features/documents/documentsApi'
 import { Card, CardContent } from '@/components/ui/card'
 import { Button } from '@/components/ui/button'
@@ -75,6 +76,21 @@ const DocumentCard = ({ document, onDelete }: DocumentCardProps) => {
             {document.processingError}
           </p>
         )}
+
+        <div className="mt-4 flex items-center justify-between gap-3">
+          <Button asChild variant="outline" size="sm" className="flex-1">
+            <Link to={`/workspace/${document._id}`}>Open workspace</Link>
+          </Button>
+          <Button
+            variant="ghost"
+            size="sm"
+            className="text-red-600 hover:bg-red-50 hover:text-red-700"
+            onClick={() => onDelete(document._id, document.title)}
+          >
+            <Trash2 className="h-4 w-4" />
+            Delete
+          </Button>
+        </div>
       </CardContent>
     </Card>
   )

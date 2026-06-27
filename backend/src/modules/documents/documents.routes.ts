@@ -7,6 +7,7 @@ const router = Router();
 
 router.post('/upload', requireAuth, upload.single('file'), DocumentsController.upload);
 router.get('/', requireAuth, DocumentsController.list);
+router.get('/:id/view', requireAuth, DocumentsController.view);
 router.get('/:id', requireAuth, DocumentsController.getById);
 router.delete('/:id', requireAuth, DocumentsController.remove);
 

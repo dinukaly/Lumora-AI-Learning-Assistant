@@ -6,6 +6,8 @@ import morgan from 'morgan';
 import authRoutes from './modules/auth/auth.routes.js';
 import userRoutes from './modules/users/users.routes.js';
 import documentRoutes from './modules/documents/documents.routes.js';
+import conversationRoutes from './modules/conversations/conversations.routes.js';
+import aiRoutes from './modules/ai/ai.routes.js';
 
 const app: Express = express();
 
@@ -24,6 +26,8 @@ app.use(express.urlencoded({ extended: true }));
 app.use('/api/v1/auth', authRoutes);
 app.use('/api/v1/users', userRoutes);
 app.use('/api/v1/documents', documentRoutes);
+app.use('/api/v1/conversations', conversationRoutes);
+app.use('/api/v1/ai', aiRoutes);
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {

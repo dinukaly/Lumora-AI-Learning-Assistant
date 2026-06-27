@@ -18,6 +18,7 @@ export interface IDocument extends Document {
   ownerId: mongoose.Types.ObjectId;
   title: string;
   originalFileName: string;
+  storageKey?: string;
   storageUrl: string;
   status: DocumentStatus;
   pageCount?: number;
@@ -39,6 +40,7 @@ const DocumentSchema: Schema = new Schema(
     ownerId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     title: { type: String, required: true, trim: true },
     originalFileName: { type: String, required: true },
+    storageKey: { type: String, trim: true },
     storageUrl: { type: String, required: true },
     status: {
       type: String,

@@ -7,6 +7,8 @@ import type { StorageProvider } from '../../common/storage/index.js';
 import { enqueueTextExtraction } from '../../common/queue/index.js';
 import Document from './document.model.js';
 import DocumentChunk from './document-chunk.model.js';
+import Conversation from '../conversations/conversation.model.js';
+import Message from '../conversations/message.model.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -41,6 +43,14 @@ function storageKeyFromUrl(storageUrl: string) {
   return path.basename(storageUrl);
 }
 
+function resolveStorageKey(document: { storageKey?: string; storageUrl: string }) {
+  if (document.storageKey) {
+    return document.storageKey;
+  }
+
+  return storageKeyFromUrl(document.storageUrl);
+}
+
 const fileFilter = (_req: Express.Request, file: Express.Multer.File, cb: FileFilterCallback) => {
   if (ALLOWED_MIME_TYPES.includes(file.mimetype)) {
     cb(null, true);
@@ -69,6 +79,7 @@ export class DocumentsService {
       ownerId: new mongoose.Types.ObjectId(ownerId),
       title,
       originalFileName: file.originalname,
+      storageKey: uniqueName,
       storageUrl,
       status: 'PROCESSING',
       fileSize: file.size,
@@ -272,12 +283,30 @@ export class DocumentsService {
       throw new Error('Document not found');
     }
 
-    const key = storageKeyFromUrl(document.storageUrl);
+    const key = resolveStorageKey(document);
+    const conversations = await Conversation.find({ documentId: document._id }).select('_id').lean();
+    const conversationIds = conversations.map((conversation) => conversation._id);
+
     await Promise.all([
       storageProvider.delete(key),
       DocumentChunk.deleteMany({ documentId: document._id }),
+      Conversation.deleteMany({ documentId: document._id }),
+      conversationIds.length > 0
+        ? Message.deleteMany({ conversationId: { $in: conversationIds } })
+        : Promise.resolve(),
     ]);
 
     return document;
+  }
+
+  static async getDocumentFile(documentId: string, ownerId: string) {
+    const document = await this.getDocumentById(documentId, ownerId);
+    const key = resolveStorageKey(document);
+    const file = await storageProvider.download(key);
+
+    return {
+      document,
+      file,
+    };
   }
 }
