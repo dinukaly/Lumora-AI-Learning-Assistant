@@ -14,6 +14,7 @@ import {
 } from 'lucide-react'
 import { useGetDocumentQuery, type DocumentData } from '@/features/documents/documentsApi'
 import WorkspaceChatTab from '@/features/workspace/chat/WorkspaceChatTab'
+import WorkspaceFlashcardsTab from '@/features/workspace/flashcards/WorkspaceFlashcardsTab'
 import { useAppSelector } from '@/app/hooks'
 import { Button } from '@/components/ui/button'
 import {
@@ -345,16 +346,7 @@ export default function WorkspacePage() {
       />
     )
   } else if (activeTab === 'flashcards') {
-    mainContent = (
-      <WorkspacePlaceholder
-        title="Flashcards tab prepared"
-        description="Document-specific flashcard review will be added here during the learning-tools phase."
-        bullets={[
-          'Generated flashcards for this document will appear here.',
-          'This keeps the document workspace stable before the learning APIs arrive.',
-        ]}
-      />
-    )
+    mainContent = <WorkspaceFlashcardsTab document={document} />
   } else {
     mainContent = (
       <WorkspacePlaceholder
