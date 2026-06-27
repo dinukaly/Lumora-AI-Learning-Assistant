@@ -6,14 +6,17 @@ import JobModel from '../../modules/jobs/job.model.js';
 import {
   CHUNKING_EMBEDDING_JOB,
   DOCUMENT_QUEUE_NAME,
+  FLASHCARD_GENERATION_JOB,
   TEXT_EXTRACTION_JOB,
   ChunkingEmbeddingJobData,
   DocumentQueueJobData,
+  FlashcardGenerationJobData,
   TextExtractionJobData,
   enqueueChunkingEmbedding,
   redisConnection,
 } from './index.js';
 import { extractPdfWithPython } from './python-extraction.js';
+import { FlashcardGenerationService } from '../../modules/learning/flashcard-generation.service.js';
 
 const storageProvider = new S3CompatibleStorageProvider();
 
@@ -140,6 +143,61 @@ async function processChunkingEmbedding(job: BullJob<ChunkingEmbeddingJobData>) 
   }
 }
 
+async function processFlashcardGeneration(job: BullJob<FlashcardGenerationJobData>) {
+  const { documentId, jobRecordId, userId, count, topic } = job.data;
+
+  await Promise.all([
+    JobModel.findByIdAndUpdate(jobRecordId, {
+      status: 'RUNNING',
+      progress: 5,
+      attempts: job.attemptsMade + 1,
+      $unset: { error: 1 },
+    }),
+    job.updateProgress(5),
+  ]);
+
+  try {
+    const result = await FlashcardGenerationService.generateForDocument(
+      { userId, documentId, count, topic },
+      {
+        onPrepared: async () => {
+          await setProgress(job, 25);
+        },
+        onGenerated: async () => {
+          await setProgress(job, 75);
+        },
+        onStored: async () => {
+          await setProgress(job, 95);
+        },
+      },
+    );
+
+    await Promise.all([
+      setProgress(job, 100),
+      JobModel.findByIdAndUpdate(jobRecordId, {
+        status: 'COMPLETED',
+        progress: 100,
+        $unset: { error: 1 },
+      }),
+    ]);
+
+    return result;
+  } catch (error) {
+    const message = error instanceof Error ? error.message : 'Unknown flashcard generation failure';
+    const maxAttempts = job.opts.attempts ?? 1;
+    const attemptsAfterFailure = job.attemptsMade + 1;
+    const willRetry = attemptsAfterFailure < maxAttempts;
+
+    await JobModel.findByIdAndUpdate(jobRecordId, {
+      status: willRetry ? 'RETRYING' : 'FAILED',
+      error: message,
+      attempts: attemptsAfterFailure,
+    });
+
+    throw error;
+  }
+}
+
 export const documentWorker = new Worker<DocumentQueueJobData>(
   DOCUMENT_QUEUE_NAME,
   async (job) => {
@@ -148,6 +206,8 @@ export const documentWorker = new Worker<DocumentQueueJobData>(
         return processTextExtraction(job as BullJob<TextExtractionJobData>);
       case CHUNKING_EMBEDDING_JOB:
         return processChunkingEmbedding(job as BullJob<ChunkingEmbeddingJobData>);
+      case FLASHCARD_GENERATION_JOB:
+        return processFlashcardGeneration(job as BullJob<FlashcardGenerationJobData>);
       default:
         throw new Error(`Unsupported document-processing job type: ${job.name}`);
     }

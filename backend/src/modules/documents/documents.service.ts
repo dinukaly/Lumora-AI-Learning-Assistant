@@ -9,6 +9,7 @@ import Document from './document.model.js';
 import DocumentChunk from './document-chunk.model.js';
 import Conversation from '../conversations/conversation.model.js';
 import Message from '../conversations/message.model.js';
+import Flashcard from '../learning/flashcard.model.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
@@ -290,6 +291,7 @@ export class DocumentsService {
     await Promise.all([
       storageProvider.delete(key),
       DocumentChunk.deleteMany({ documentId: document._id }),
+      Flashcard.deleteMany({ documentId: document._id }),
       Conversation.deleteMany({ documentId: document._id }),
       conversationIds.length > 0
         ? Message.deleteMany({ conversationId: { $in: conversationIds } })

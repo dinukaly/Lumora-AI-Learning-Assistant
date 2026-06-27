@@ -1,6 +1,7 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../common/middleware/auth.js';
 import { AIChatService } from './ai-chat.service.js';
+import { FlashcardJobService } from '../learning/flashcard-job.service.js';
 
 const chatService = new AIChatService();
 const VALID_ACTIONS = new Set([
@@ -71,6 +72,49 @@ export class AIController {
       }
 
       if (error.message === 'Conversation not found' || error.message === 'Document not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+    }
+  }
+
+  static async generateFlashcards(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user!.userId;
+      const { documentId, count, topic } = req.body ?? {};
+
+      if (typeof documentId !== 'string' || !documentId.trim()) {
+        return res.status(400).json({
+          error: { code: 'VALIDATION_ERROR', message: 'documentId is required' },
+        });
+      }
+
+      const normalizedCount = typeof count === 'number'
+        ? count
+        : typeof count === 'string'
+          ? Number.parseInt(count, 10)
+          : undefined;
+
+      const job = await FlashcardJobService.queueGeneration({
+        userId,
+        documentId: documentId.trim(),
+        count: normalizedCount,
+        topic: typeof topic === 'string' ? topic : undefined,
+      });
+
+      return res.status(202).json({
+        jobId: job.id,
+        message: 'Flashcard generation queued',
+      });
+    } catch (error: any) {
+      if (
+        error.message === 'Invalid document ID'
+        || error.message === 'Document is not ready for flashcard generation'
+      ) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: error.message } });
+      }
+      if (error.message === 'Document not found') {
         return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
       }
 
