@@ -3,6 +3,8 @@ import cors from 'cors';
 import cookieParser from 'cookie-parser';
 import helmet from 'helmet';
 import morgan from 'morgan';
+import { config } from './config/index.js';
+import { getReadinessStatus } from './common/health/readiness.js';
 import authRoutes from './modules/auth/auth.routes.js';
 import userRoutes from './modules/users/users.routes.js';
 import documentRoutes from './modules/documents/documents.routes.js';
@@ -13,9 +15,10 @@ import learningRoutes from './modules/learning/learning.routes.js';
 const app: Express = express();
 
 // Middleware
+app.set('trust proxy', config.trustProxy);
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 app.use(cors({
-  origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+  origin: config.frontendUrl,
   credentials: true,
 }));
 app.use(cookieParser());
@@ -33,18 +36,34 @@ app.use('/api/v1/learning', learningRoutes);
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {
-  res.status(200).json({ status: 'ok', message: 'Lumora API is running' });
+  res.status(200).json({ status: 'ok', service: 'lumora-api', env: config.env });
+});
+
+app.get('/livez', (req: Request, res: Response) => {
+  res.status(200).json({ status: 'ok', service: 'lumora-api', env: config.env });
+});
+
+app.get('/readyz', async (req: Request, res: Response) => {
+  const readiness = await getReadinessStatus();
+
+  res.status(readiness.ready ? 200 : 503).json({
+    status: readiness.ready ? 'ready' : 'not_ready',
+    service: 'lumora-api',
+    env: config.env,
+    checks: readiness.checks,
+  });
 });
 
 // Error handling middleware
-app.use((err: any, req: Request, res: Response, next: NextFunction) => {
+app.use((err: unknown, req: Request, res: Response, _next: NextFunction) => {
+  void _next;
   console.error(err);
 
-  if (err.code === 'LIMIT_FILE_SIZE') {
+  if (hasCode(err, 'LIMIT_FILE_SIZE')) {
     return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: 'File size exceeds the 50MB limit' } });
   }
 
-  if (err.message === 'Only PDF files are allowed') {
+  if (hasMessage(err, 'Only PDF files are allowed')) {
     return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: err.message } });
   }
 
@@ -52,3 +71,14 @@ app.use((err: any, req: Request, res: Response, next: NextFunction) => {
 });
 
 export default app;
+
+function hasCode(error: unknown, code: string): error is { code: string } {
+  return typeof error === 'object' && error !== null && 'code' in error && error.code === code;
+}
+
+function hasMessage(error: unknown, message: string): error is { message: string } {
+  return typeof error === 'object'
+    && error !== null
+    && 'message' in error
+    && error.message === message;
+}
