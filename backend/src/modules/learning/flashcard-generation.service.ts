@@ -3,6 +3,7 @@ import Document from '../documents/document.model.js';
 import DocumentChunk, { type IDocumentChunk } from '../documents/document-chunk.model.js';
 import Flashcard, { type FlashcardDifficulty } from './flashcard.model.js';
 import { getChatProvider } from '../ai/ai.config.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 interface GenerateFlashcardsInput {
   userId: string;
@@ -129,6 +130,13 @@ export class FlashcardGenerationService {
 
     await Document.findByIdAndUpdate(input.documentId, {
       flashcardCount: storedCards.length,
+    });
+
+    await NotificationsService.notifyFlashcardsReady({
+      userId: input.userId,
+      documentId: input.documentId,
+      title: document.title,
+      createdCount: storedCards.length,
     });
 
     await callbacks.onStored?.();
