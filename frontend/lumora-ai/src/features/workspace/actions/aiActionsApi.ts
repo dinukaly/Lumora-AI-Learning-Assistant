@@ -33,6 +33,13 @@ export interface LatestAIActionsResponse {
   concepts: ConceptsArtifact | null
 }
 
+export interface ExplainConceptResponse {
+  documentId: string
+  topic: string
+  explanation: string
+  citations: AIActionsCitation[]
+}
+
 export const aiActionsApi = apiSlice.injectEndpoints({
   endpoints: (builder) => ({
     getLatestActions: builder.query<LatestAIActionsResponse, string>({
@@ -67,6 +74,17 @@ export const aiActionsApi = apiSlice.injectEndpoints({
       }),
       invalidatesTags: (_result, _error, { documentId }) => [{ type: 'AIActions', id: documentId }],
     }),
+
+    explainConcept: builder.mutation<
+      ExplainConceptResponse,
+      { documentId: string; topic: string }
+    >({
+      query: (body) => ({
+        url: '/ai/explain-concept',
+        method: 'POST',
+        body,
+      }),
+    }),
   }),
 })
 
@@ -74,4 +92,5 @@ export const {
   useGetLatestActionsQuery,
   useSummarizeDocumentMutation,
   useExtractConceptsMutation,
+  useExplainConceptMutation,
 } = aiActionsApi
