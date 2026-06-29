@@ -69,11 +69,19 @@ export function RealtimeBridge() {
       apiSlice.util.invalidateTags([
         { type: 'Documents', id: event.documentId },
         { type: 'Documents', id: 'LIST' },
+        { type: 'Progress', id: 'SUMMARY' },
       ]),
     )
   })
 
   const handleNotification = useEffectEvent((event: NotificationEvent) => {
+    dispatch(
+      apiSlice.util.invalidateTags([
+        { type: 'Notifications', id: 'LIST' },
+        { type: 'Progress', id: 'SUMMARY' },
+      ]),
+    )
+
     if (event.notification.type === 'DOCUMENT_READY') {
       dispatch(
         enqueueToast({
@@ -99,6 +107,13 @@ export function RealtimeBridge() {
     }
 
     if (event.notification.type === 'FLASHCARDS_READY' || event.notification.type === 'QUIZ_READY') {
+      dispatch(
+        apiSlice.util.invalidateTags([
+          { type: 'Flashcards', id: 'LIST' },
+          { type: 'Quizzes', id: 'LIST' },
+        ]),
+      )
+
       dispatch(
         enqueueToast({
           id: event.notification.id,
