@@ -56,6 +56,13 @@ export interface LatestAIActionsResult {
   } | null;
 }
 
+export interface ExplainConceptResult {
+  documentId: string;
+  topic: string;
+  explanation: string;
+  citations: Citation[];
+}
+
 export class AIActionsService {
   private readonly orchestrator = getAIOrchestrator();
 
@@ -184,6 +191,38 @@ export class AIActionsService {
           createdAt: latestConcepts.createdAt,
         }
         : null,
+    };
+  }
+
+  async explainConcept(
+    userId: string,
+    documentId: string,
+    topic: string,
+  ): Promise<ExplainConceptResult> {
+    const normalizedTopic = topic.trim();
+    if (!normalizedTopic) {
+      throw new Error('A concept or takeaway is required');
+    }
+
+    await assertReadyOwnedDocument(documentId, userId);
+
+    const response = await this.orchestrator.process({
+      userId,
+      documentId,
+      action: 'EXPLAIN_CONCEPT',
+      message: `Explain this concept from the document in more depth: ${normalizedTopic}`,
+    });
+
+    const explanation = response.content.trim();
+    if (!explanation) {
+      throw new Error('AI did not return a usable concept explanation');
+    }
+
+    return {
+      documentId,
+      topic: normalizedTopic,
+      explanation,
+      citations: response.citations,
     };
   }
 
