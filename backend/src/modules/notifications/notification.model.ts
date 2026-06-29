@@ -3,6 +3,7 @@ import mongoose, { Document, Schema } from 'mongoose';
 export type NotificationType =
   | 'DOCUMENT_READY'
   | 'PROCESSING_FAILED'
+  | 'FLASHCARDS_READY'
   | 'QUIZ_READY'
   | 'SYSTEM'
   | 'ADMIN_BROADCAST';
@@ -23,7 +24,7 @@ const NotificationSchema = new Schema(
     userId: { type: Schema.Types.ObjectId, ref: 'User', required: true, index: true },
     type: {
       type: String,
-      enum: ['DOCUMENT_READY', 'PROCESSING_FAILED', 'QUIZ_READY', 'SYSTEM', 'ADMIN_BROADCAST'],
+      enum: ['DOCUMENT_READY', 'PROCESSING_FAILED', 'FLASHCARDS_READY', 'QUIZ_READY', 'SYSTEM', 'ADMIN_BROADCAST'],
       required: true,
     },
     title: { type: String, required: true, trim: true },
