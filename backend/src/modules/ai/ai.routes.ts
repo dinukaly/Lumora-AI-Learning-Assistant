@@ -8,6 +8,7 @@ router.post('/chat', requireAuth, AIController.chat);
 router.get('/actions/latest', requireAuth, AIController.getLatestActions);
 router.post('/summarize-document', requireAuth, AIController.summarizeDocument);
 router.post('/extract-concepts', requireAuth, AIController.extractConcepts);
+router.post('/explain-concept', requireAuth, AIController.explainConcept);
 router.post('/generate-flashcards', requireAuth, AIController.generateFlashcards);
 router.post('/generate-quiz', requireAuth, AIController.generateQuiz);
 
