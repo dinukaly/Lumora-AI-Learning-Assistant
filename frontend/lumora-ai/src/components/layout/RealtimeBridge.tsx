@@ -17,7 +17,7 @@ interface DocumentStatusEvent {
 interface NotificationEvent {
   notification: {
     id: string
-    type: 'DOCUMENT_READY' | 'PROCESSING_FAILED' | string
+    type: 'DOCUMENT_READY' | 'PROCESSING_FAILED' | 'FLASHCARDS_READY' | 'QUIZ_READY' | string
     title: string
     body: string
     metadata?: Record<string, unknown>
@@ -93,6 +93,18 @@ export function RealtimeBridge() {
           title: event.notification.title,
           description: event.notification.body,
           tone: 'error',
+        }),
+      )
+      return
+    }
+
+    if (event.notification.type === 'FLASHCARDS_READY' || event.notification.type === 'QUIZ_READY') {
+      dispatch(
+        enqueueToast({
+          id: event.notification.id,
+          title: event.notification.title,
+          description: event.notification.body,
+          tone: 'info',
         }),
       )
     }
