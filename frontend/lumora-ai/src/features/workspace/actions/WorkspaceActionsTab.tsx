@@ -3,6 +3,8 @@ import { useEffect, useMemo, useState } from 'react'
 import {
   AlertCircle,
   Brain,
+  ChevronDown,
+  ChevronUp,
   FileSearch,
   Lightbulb,
   Loader2,
@@ -15,25 +17,34 @@ import type { DocumentData } from '@/features/documents/documentsApi'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
 import {
+  useExplainConceptMutation,
   useExtractConceptsMutation,
   useGetLatestActionsQuery,
   useSummarizeDocumentMutation,
   type AIActionsCitation,
   type ConceptsArtifact,
+  type ExplainConceptResponse,
   type SummaryArtifact,
 } from './aiActionsApi'
 
 type ActiveResultView = 'summary' | 'concepts' | 'takeaways'
+type DeepDiveKind = 'concept' | 'takeaway'
 
 export default function WorkspaceActionsTab({ document }: { document: DocumentData }) {
   const dispatch = useAppDispatch()
   const [activeView, setActiveView] = useState<ActiveResultView>('summary')
+  const [deepDiveTarget, setDeepDiveTarget] = useState<{
+    topic: string
+    kind: DeepDiveKind
+  } | null>(null)
+  const [deepDiveResult, setDeepDiveResult] = useState<ExplainConceptResponse | null>(null)
 
   const latestActionsQuery = useGetLatestActionsQuery(
     document.status === 'READY' ? document._id : skipToken,
   )
   const [summarizeDocument, { isLoading: isSummarizing }] = useSummarizeDocumentMutation()
   const [extractConcepts, { isLoading: isExtractingConcepts }] = useExtractConceptsMutation()
+  const [explainConcept, { isLoading: isExplainingConcept }] = useExplainConceptMutation()
 
   const savedSummary = latestActionsQuery.data?.summary ?? null
   const savedConcepts = latestActionsQuery.data?.concepts ?? null
@@ -49,13 +60,22 @@ export default function WorkspaceActionsTab({ document }: { document: DocumentDa
     }
   }, [savedConcepts, savedSummary])
 
+  useEffect(() => {
+    setDeepDiveTarget(null)
+    setDeepDiveResult(null)
+  }, [activeView, document._id, savedConcepts?.artifactId, savedSummary?.artifactId])
+
   const displayedCitations = useMemo(() => {
+    if (deepDiveResult) {
+      return deepDiveResult.citations
+    }
+
     if (activeView === 'concepts') {
       return savedConcepts?.citations ?? []
     }
 
     return savedSummary?.citations ?? []
-  }, [activeView, savedConcepts?.citations, savedSummary?.citations])
+  }, [activeView, deepDiveResult, savedConcepts?.citations, savedSummary?.citations])
 
   const takeaways = savedSummary?.takeaways ?? []
 
@@ -103,6 +123,46 @@ export default function WorkspaceActionsTab({ document }: { document: DocumentDa
           id: `ai-actions-concepts-error-${Date.now()}`,
           tone: 'error',
           title: 'Could not extract concepts',
+          description: getApiErrorMessage(error),
+        }),
+      )
+    }
+  }
+
+  async function handleExplainTopic(topic: string, kind: DeepDiveKind) {
+    const normalizedTopic = topic.trim()
+    if (!normalizedTopic) {
+      return
+    }
+
+    if (
+      deepDiveResult
+      && deepDiveTarget
+      && deepDiveTarget.topic === normalizedTopic
+      && deepDiveTarget.kind === kind
+    ) {
+      setDeepDiveTarget(null)
+      setDeepDiveResult(null)
+      return
+    }
+
+    setDeepDiveTarget({ topic: normalizedTopic, kind })
+    setDeepDiveResult(null)
+
+    try {
+      const result = await explainConcept({
+        documentId: document._id,
+        topic: normalizedTopic,
+      }).unwrap()
+
+      setDeepDiveResult(result)
+    } catch (error) {
+      setDeepDiveTarget(null)
+      dispatch(
+        enqueueToast({
+          id: `ai-actions-deep-dive-error-${Date.now()}`,
+          tone: 'error',
+          title: 'Could not explain this item',
           description: getApiErrorMessage(error),
         }),
       )
@@ -209,7 +269,13 @@ export default function WorkspaceActionsTab({ document }: { document: DocumentDa
               </div>
             ) : activeView === 'concepts' ? (
               savedConcepts ? (
-                <ConceptResultsView artifact={savedConcepts} />
+                <ConceptResultsView
+                  artifact={savedConcepts}
+                  deepDiveTarget={deepDiveTarget}
+                  deepDiveResult={deepDiveResult}
+                  isExplainingConcept={isExplainingConcept}
+                  onExplain={handleExplainTopic}
+                />
               ) : (
                 <EmptyResultState
                   title="No concepts generated yet"
@@ -219,7 +285,13 @@ export default function WorkspaceActionsTab({ document }: { document: DocumentDa
               )
             ) : activeView === 'takeaways' ? (
               savedSummary && takeaways.length > 0 ? (
-                <TakeawaysResultsView artifact={savedSummary} />
+                <TakeawaysResultsView
+                  artifact={savedSummary}
+                  deepDiveTarget={deepDiveTarget}
+                  deepDiveResult={deepDiveResult}
+                  isExplainingConcept={isExplainingConcept}
+                  onExplain={handleExplainTopic}
+                />
               ) : (
                 <EmptyResultState
                   title="No takeaways generated yet"
@@ -228,7 +300,13 @@ export default function WorkspaceActionsTab({ document }: { document: DocumentDa
                 />
               )
             ) : savedSummary ? (
-              <SummaryResultsView artifact={savedSummary} />
+              <SummaryResultsView
+                artifact={savedSummary}
+                deepDiveTarget={deepDiveTarget}
+                deepDiveResult={deepDiveResult}
+                isExplainingConcept={isExplainingConcept}
+                onExplain={handleExplainTopic}
+              />
             ) : (
               <EmptyResultState
                 title="No summary generated yet"
@@ -273,7 +351,9 @@ export default function WorkspaceActionsTab({ document }: { document: DocumentDa
           <Card>
             <CardHeader>
               <CardTitle>Grounded citations</CardTitle>
-              <CardDescription>Recent page-level evidence for the visible AI Action result.</CardDescription>
+              <CardDescription>
+                Recent page-level evidence for the visible AI Action result or deep dive.
+              </CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
               {displayedCitations.length > 0 ? (
@@ -360,7 +440,19 @@ function EmptyResultState({
   )
 }
 
-function SummaryResultsView({ artifact }: { artifact: SummaryArtifact }) {
+function SummaryResultsView({
+  artifact,
+  deepDiveTarget,
+  deepDiveResult,
+  isExplainingConcept,
+  onExplain,
+}: {
+  artifact: SummaryArtifact
+  deepDiveTarget: { topic: string; kind: DeepDiveKind } | null
+  deepDiveResult: ExplainConceptResponse | null
+  isExplainingConcept: boolean
+  onExplain: (topic: string, kind: DeepDiveKind) => void
+}) {
   return (
     <div className="space-y-4">
       <div className="rounded-2xl bg-emerald-50/70 px-5 py-4 text-sm text-emerald-900">
@@ -374,9 +466,16 @@ function SummaryResultsView({ artifact }: { artifact: SummaryArtifact }) {
           <h3 className="text-sm font-semibold uppercase tracking-wide text-gray-500">Included takeaways</h3>
           <div className="grid gap-3">
             {artifact.takeaways.map((takeaway) => (
-              <div key={takeaway} className="rounded-2xl border border-gray-200 bg-white px-4 py-3 text-sm text-gray-700">
-                {takeaway}
-              </div>
+              <DeepDiveListItem
+                key={takeaway}
+                topic={takeaway}
+                kind="takeaway"
+                label={takeaway}
+                deepDiveTarget={deepDiveTarget}
+                deepDiveResult={deepDiveResult}
+                isExplainingConcept={isExplainingConcept}
+                onExplain={onExplain}
+              />
             ))}
           </div>
         </div>
@@ -385,7 +484,19 @@ function SummaryResultsView({ artifact }: { artifact: SummaryArtifact }) {
   )
 }
 
-function TakeawaysResultsView({ artifact }: { artifact: SummaryArtifact }) {
+function TakeawaysResultsView({
+  artifact,
+  deepDiveTarget,
+  deepDiveResult,
+  isExplainingConcept,
+  onExplain,
+}: {
+  artifact: SummaryArtifact
+  deepDiveTarget: { topic: string; kind: DeepDiveKind } | null
+  deepDiveResult: ExplainConceptResponse | null
+  isExplainingConcept: boolean
+  onExplain: (topic: string, kind: DeepDiveKind) => void
+}) {
   return (
     <div className="space-y-4">
       <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -393,16 +504,36 @@ function TakeawaysResultsView({ artifact }: { artifact: SummaryArtifact }) {
       </div>
       <div className="grid gap-3">
         {artifact.takeaways.map((takeaway) => (
-          <div key={takeaway} className="rounded-2xl border border-amber-200 bg-amber-50/70 px-4 py-4 text-sm leading-6 text-amber-950">
-            {takeaway}
-          </div>
+          <DeepDiveListItem
+            key={takeaway}
+            topic={takeaway}
+            kind="takeaway"
+            label={takeaway}
+            tone="amber"
+            deepDiveTarget={deepDiveTarget}
+            deepDiveResult={deepDiveResult}
+            isExplainingConcept={isExplainingConcept}
+            onExplain={onExplain}
+          />
         ))}
       </div>
     </div>
   )
 }
 
-function ConceptResultsView({ artifact }: { artifact: ConceptsArtifact }) {
+function ConceptResultsView({
+  artifact,
+  deepDiveTarget,
+  deepDiveResult,
+  isExplainingConcept,
+  onExplain,
+}: {
+  artifact: ConceptsArtifact
+  deepDiveTarget: { topic: string; kind: DeepDiveKind } | null
+  deepDiveResult: ExplainConceptResponse | null
+  isExplainingConcept: boolean
+  onExplain: (topic: string, kind: DeepDiveKind) => void
+}) {
   return (
     <div className="space-y-4">
       <div className="text-xs font-semibold uppercase tracking-wide text-gray-500">
@@ -412,14 +543,175 @@ function ConceptResultsView({ artifact }: { artifact: ConceptsArtifact }) {
         {artifact.concepts.map((concept) => (
           <Card key={concept.title} className="border-gray-200 shadow-none">
             <CardHeader className="pb-3">
-              <CardTitle className="text-lg">{concept.title}</CardTitle>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+                <div className="space-y-2">
+                  <CardTitle className="text-lg">{concept.title}</CardTitle>
+                  <CardDescription className="text-sm leading-6 text-gray-600">
+                    {concept.description}
+                  </CardDescription>
+                </div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => onExplain(concept.title, 'concept')}
+                  disabled={
+                    isExplainingConcept
+                    && deepDiveTarget?.topic === concept.title
+                    && deepDiveTarget.kind === 'concept'
+                  }
+                >
+                  {isExplainingConcept
+                  && deepDiveTarget?.topic === concept.title
+                  && deepDiveTarget.kind === 'concept' ? (
+                    <>
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      Explaining...
+                    </>
+                  ) : deepDiveResult?.topic === concept.title && deepDiveTarget?.kind === 'concept' ? (
+                    <>
+                      <ChevronUp className="h-4 w-4" />
+                      Hide deep dive
+                    </>
+                  ) : (
+                    <>
+                      <ChevronDown className="h-4 w-4" />
+                      Deep dive
+                    </>
+                  )}
+                </Button>
+              </div>
             </CardHeader>
-            <CardContent className="text-sm leading-7 text-gray-700">
-              {concept.description}
-            </CardContent>
+            {(deepDiveTarget?.topic === concept.title || deepDiveResult?.topic === concept.title) && (
+              <CardContent className="pt-0">
+                <DeepDiveExplanation
+                  topic={concept.title}
+                  kind="concept"
+                  deepDiveTarget={deepDiveTarget}
+                  deepDiveResult={deepDiveResult}
+                  isExplainingConcept={isExplainingConcept}
+                />
+              </CardContent>
+            )}
           </Card>
         ))}
       </div>
+    </div>
+  )
+}
+
+function DeepDiveListItem({
+  topic,
+  label,
+  kind,
+  tone = 'neutral',
+  deepDiveTarget,
+  deepDiveResult,
+  isExplainingConcept,
+  onExplain,
+}: {
+  topic: string
+  label: string
+  kind: DeepDiveKind
+  tone?: 'neutral' | 'amber'
+  deepDiveTarget: { topic: string; kind: DeepDiveKind } | null
+  deepDiveResult: ExplainConceptResponse | null
+  isExplainingConcept: boolean
+  onExplain: (topic: string, kind: DeepDiveKind) => void
+}) {
+  const isCurrentTarget = deepDiveTarget?.topic === topic && deepDiveTarget.kind === kind
+  const isExpanded = deepDiveResult?.topic === topic && deepDiveTarget?.kind === kind
+
+  return (
+    <div
+      className={`rounded-2xl border px-4 py-4 ${
+        tone === 'amber'
+          ? 'border-amber-200 bg-amber-50/70'
+          : 'border-gray-200 bg-white'
+      }`}
+    >
+      <div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between">
+        <p className={`text-sm leading-6 ${tone === 'amber' ? 'text-amber-950' : 'text-gray-700'}`}>
+          {label}
+        </p>
+        <Button
+          type="button"
+          variant="outline"
+          size="sm"
+          onClick={() => onExplain(topic, kind)}
+          disabled={isExplainingConcept && isCurrentTarget}
+        >
+          {isExplainingConcept && isCurrentTarget ? (
+            <>
+              <Loader2 className="h-4 w-4 animate-spin" />
+              Explaining...
+            </>
+          ) : isExpanded ? (
+            <>
+              <ChevronUp className="h-4 w-4" />
+              Hide deep dive
+            </>
+          ) : (
+            <>
+              <ChevronDown className="h-4 w-4" />
+              Deep dive
+            </>
+          )}
+        </Button>
+      </div>
+
+      {(isCurrentTarget || isExpanded) && (
+        <div className="mt-4">
+          <DeepDiveExplanation
+            topic={topic}
+            kind={kind}
+            deepDiveTarget={deepDiveTarget}
+            deepDiveResult={deepDiveResult}
+            isExplainingConcept={isExplainingConcept}
+          />
+        </div>
+      )}
+    </div>
+  )
+}
+
+function DeepDiveExplanation({
+  topic,
+  kind,
+  deepDiveTarget,
+  deepDiveResult,
+  isExplainingConcept,
+}: {
+  topic: string
+  kind: DeepDiveKind
+  deepDiveTarget: { topic: string; kind: DeepDiveKind } | null
+  deepDiveResult: ExplainConceptResponse | null
+  isExplainingConcept: boolean
+}) {
+  const isLoading = isExplainingConcept && deepDiveTarget?.topic === topic && deepDiveTarget.kind === kind
+  const isActiveResult = deepDiveResult?.topic === topic && deepDiveTarget?.kind === kind
+
+  if (isLoading) {
+    return (
+      <div className="rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-4 text-sm text-emerald-900">
+        <div className="flex items-center gap-2">
+          <Loader2 className="h-4 w-4 animate-spin" />
+          Building a grounded deep dive for this {kind}...
+        </div>
+      </div>
+    )
+  }
+
+  if (!isActiveResult || !deepDiveResult) {
+    return null
+  }
+
+  return (
+    <div className="space-y-3 rounded-2xl border border-emerald-200 bg-emerald-50/70 px-4 py-4">
+      <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
+        Detailed grounded explanation
+      </div>
+      <p className="text-sm leading-7 text-emerald-950">{deepDiveResult.explanation}</p>
     </div>
   )
 }
