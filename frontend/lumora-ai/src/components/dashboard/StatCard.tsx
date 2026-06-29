@@ -4,16 +4,23 @@ import { Card, CardContent } from '../ui/card'
 interface StatCardProps {
   icon: LucideIcon
   label: string
-  value: number
+  value: number | string
   trend?: {
     value: string
-    positive: boolean
+    tone?: 'positive' | 'negative' | 'neutral'
+    showSign?: boolean
   }
   iconBgClass?: string
   iconColorClass?: string
 }
 
 const StatCard = ({ icon: Icon, label, value, trend, iconBgClass = 'bg-emerald-100', iconColorClass = 'text-emerald-600' }: StatCardProps) => {
+  const trendToneClass = trend?.tone === 'negative'
+    ? 'text-rose-600'
+    : trend?.tone === 'neutral'
+      ? 'text-gray-500'
+      : 'text-emerald-600'
+
   return (
     <Card>
       <CardContent className="p-6">
@@ -27,8 +34,8 @@ const StatCard = ({ icon: Icon, label, value, trend, iconBgClass = 'bg-emerald-1
           <div className="mt-1 flex items-baseline gap-2">
             <p className="text-3xl font-bold text-gray-900">{value}</p>
             {trend && (
-              <span className={`text-sm font-medium ${trend.positive ? 'text-emerald-600' : 'text-red-500'}`}>
-                {trend.positive ? '+' : ''}{trend.value}
+              <span className={`text-sm font-medium ${trendToneClass}`}>
+                {trend.showSign ? '+' : ''}{trend.value}
               </span>
             )}
           </div>
