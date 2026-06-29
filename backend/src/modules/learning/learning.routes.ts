@@ -4,6 +4,7 @@ import { LearningController } from './learning.controller.js';
 
 const router = Router();
 
+router.get('/progress', requireAuth, LearningController.getProgress);
 router.get('/flashcards', requireAuth, LearningController.listFlashcards);
 router.post('/flashcards/:id/review', requireAuth, LearningController.reviewFlashcard);
 router.get('/quizzes', requireAuth, LearningController.listQuizzes);
