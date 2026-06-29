@@ -5,7 +5,9 @@ import { fileURLToPath } from 'url';
 const __dirname = path.dirname(fileURLToPath(import.meta.url));
 dotenv.config({ path: path.join(__dirname, '../../.env') });
 
-const embeddingProvider = process.env.EMBEDDING_PROVIDER || 'local';
+const environment = process.env.NODE_ENV || 'development';
+const embeddingProvider = process.env.EMBEDDING_PROVIDER
+  || (environment === 'production' ? 'google' : 'local');
 const defaultEmbeddingModel = process.env.EMBEDDING_MODEL
   || (embeddingProvider === 'google'
     ? 'text-embedding-004'
@@ -16,8 +18,10 @@ const defaultEmbeddingDimensions = process.env.EMBEDDING_DIMENSIONS
   || (embeddingProvider === 'google' ? '768' : '384');
 
 export const config = {
-  env: process.env.NODE_ENV || 'development',
+  env: environment,
   port: parseInt(process.env.PORT || '5000', 10),
+  frontendUrl: process.env.FRONTEND_URL || 'http://localhost:5173',
+  trustProxy: parseTrustProxy(process.env.TRUST_PROXY, environment),
 
   mongodb: {
     uri: process.env.MONGODB_URI || 'mongodb://localhost:27017/lumora',
@@ -78,6 +82,11 @@ export const config = {
     password: process.env.REDIS_PASSWORD || undefined,
   },
 
+  rateLimit: {
+    authWindowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS || '900000', 10),
+    authMax: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '10', 10),
+  },
+
   extraction: {
     pythonExecutable: process.env.PYTHON_EXECUTABLE || 'python',
     timeoutMs: parseInt(process.env.PDF_EXTRACTION_TIMEOUT_MS || '120000', 10),
@@ -105,3 +114,20 @@ export const config = {
     ),
   },
 };
+
+function parseTrustProxy(value: string | undefined, env: string) {
+  if (!value) {
+    return env === 'production' ? 1 : false;
+  }
+
+  if (value === 'true') {
+    return true;
+  }
+
+  if (value === 'false') {
+    return false;
+  }
+
+  const numericValue = Number(value);
+  return Number.isNaN(numericValue) ? value : numericValue;
+}
