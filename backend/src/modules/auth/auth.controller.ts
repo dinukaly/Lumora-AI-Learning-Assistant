@@ -1,10 +1,11 @@
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
-import { registerSchema, loginSchema, refreshSchema } from './auth.dto.js';
+import { registerSchema, loginSchema } from './auth.dto.js';
+import { config } from '../../config/index.js';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
-  secure: process.env.NODE_ENV === 'production',
+  secure: config.env === 'production',
   sameSite: 'strict' as const,
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
