@@ -256,32 +256,51 @@ async function processQuizGeneration(job: BullJob<QuizGenerationJobData>) {
   }
 }
 
-export const documentWorker = new Worker<DocumentQueueJobData>(
-  DOCUMENT_QUEUE_NAME,
-  async (job) => {
-    switch (job.name) {
-      case TEXT_EXTRACTION_JOB:
-        return processTextExtraction(job as BullJob<TextExtractionJobData>);
-      case CHUNKING_EMBEDDING_JOB:
-        return processChunkingEmbedding(job as BullJob<ChunkingEmbeddingJobData>);
-      case FLASHCARD_GENERATION_JOB:
-        return processFlashcardGeneration(job as BullJob<FlashcardGenerationJobData>);
-      case QUIZ_GENERATION_JOB:
-        return processQuizGeneration(job as BullJob<QuizGenerationJobData>);
-      default:
-        throw new Error(`Unsupported document-processing job type: ${job.name}`);
-    }
-  },
-  {
-    connection: redisConnection,
-    concurrency: 2,
-  },
-);
+let documentWorkerInstance: Worker<DocumentQueueJobData> | null = null;
 
-documentWorker.on('completed', (job) => {
-  console.log(`Document processing job ${job.id} completed`);
-});
+export function startDocumentWorker() {
+  if (documentWorkerInstance) {
+    return documentWorkerInstance;
+  }
 
-documentWorker.on('failed', (job, error) => {
-  console.error(`Document processing job ${job?.id ?? 'unknown'} failed: ${error.message}`);
-});
+  documentWorkerInstance = new Worker<DocumentQueueJobData>(
+    DOCUMENT_QUEUE_NAME,
+    async (job) => {
+      switch (job.name) {
+        case TEXT_EXTRACTION_JOB:
+          return processTextExtraction(job as BullJob<TextExtractionJobData>);
+        case CHUNKING_EMBEDDING_JOB:
+          return processChunkingEmbedding(job as BullJob<ChunkingEmbeddingJobData>);
+        case FLASHCARD_GENERATION_JOB:
+          return processFlashcardGeneration(job as BullJob<FlashcardGenerationJobData>);
+        case QUIZ_GENERATION_JOB:
+          return processQuizGeneration(job as BullJob<QuizGenerationJobData>);
+        default:
+          throw new Error(`Unsupported document-processing job type: ${job.name}`);
+      }
+    },
+    {
+      connection: redisConnection,
+      concurrency: 2,
+    },
+  );
+
+  documentWorkerInstance.on('completed', (job) => {
+    console.log(`Document processing job ${job.id} completed`);
+  });
+
+  documentWorkerInstance.on('failed', (job, error) => {
+    console.error(`Document processing job ${job?.id ?? 'unknown'} failed: ${error.message}`);
+  });
+
+  return documentWorkerInstance;
+}
+
+export async function stopDocumentWorker() {
+  if (!documentWorkerInstance) {
+    return;
+  }
+
+  await documentWorkerInstance.close();
+  documentWorkerInstance = null;
+}

@@ -1,5 +1,6 @@
 import type { Server as HttpServer } from 'http';
 import { Server, type Socket } from 'socket.io';
+import { config } from '../../config/index.js';
 import { verifyAccessToken, type TokenPayload } from '../utils/jwt.js';
 
 export const SOCKET_EVENTS = {
@@ -18,7 +19,7 @@ export function initializeSocketServer(httpServer: HttpServer) {
 
   ioInstance = new Server(httpServer, {
     cors: {
-      origin: process.env.FRONTEND_URL || 'http://localhost:5173',
+      origin: config.frontendUrl,
       credentials: true,
     },
   });
@@ -57,6 +58,15 @@ export function emitToUser(userId: string, event: SocketEventName, payload: unkn
 
   ioInstance.to(getUserRoom(userId)).emit(event, payload);
   return true;
+}
+
+export async function closeSocketServer() {
+  if (!ioInstance) {
+    return;
+  }
+
+  await ioInstance.close();
+  ioInstance = null;
 }
 
 function extractSocketToken(socket: Socket) {
