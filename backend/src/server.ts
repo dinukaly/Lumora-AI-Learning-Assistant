@@ -1,39 +1,46 @@
 import app from './app.js';
 import { config } from './config/index.js';
-import { connectDB } from './config/db.js';
-import { ensureDocumentChunkVectorIndex } from './modules/documents/document-vector-search.service.js';
 import { createServer } from 'http';
-import { initializeSocketServer } from './common/realtime/socket.js';
+import { initializeSocketServer, closeSocketServer } from './common/realtime/socket.js';
+import { initializeRuntime } from './bootstrap/runtime.js';
+import { disconnectDB } from './config/db.js';
+import { closeDocumentQueue } from './common/queue/index.js';
+import { closeReadinessRedisClient } from './common/health/readiness.js';
 
 const startServer = async () => {
-  // Connect to Database
-  await connectDB();
-  if (config.vectorSearch.autoEnsureOnStartup) {
-    const vectorIndex = await ensureDocumentChunkVectorIndex({
-      allowUnsupported: true,
-      waitForQueryable: false,
+  try {
+    await initializeRuntime({ role: 'api' });
+
+    const httpServer = createServer(app);
+    initializeSocketServer(httpServer);
+
+    const shutdown = async (signal: string) => {
+      console.log(`Received ${signal}. Shutting down API process...`);
+
+      await closeSocketServer();
+
+      httpServer.close(async () => {
+        await Promise.allSettled([
+          closeDocumentQueue(),
+          closeReadinessRedisClient(),
+          disconnectDB(),
+        ]);
+
+        process.exit(0);
+      });
+    };
+
+    process.once('SIGINT', () => void shutdown('SIGINT'));
+    process.once('SIGTERM', () => void shutdown('SIGTERM'));
+
+    httpServer.listen(config.port, () => {
+      console.log(`API server running in ${config.env} mode on port ${config.port}`);
     });
-
-    if (vectorIndex.supported) {
-      console.log(
-        `Vector search index "${vectorIndex.indexName}" is configured` +
-        `${vectorIndex.queryable ? ' and queryable' : ' (still building)'}`,
-      );
-    } else {
-      console.warn(
-        `Skipping Atlas vector index ensure: ${vectorIndex.message ?? 'unsupported database'}`,
-      );
-    }
+  } catch (error) {
+    console.error('Failed to start API server', error);
+    await Promise.allSettled([closeReadinessRedisClient(), disconnectDB()]);
+    process.exit(1);
   }
-  await import('./common/queue/worker.js');
-
-  const PORT = config.port;
-  const httpServer = createServer(app);
-  initializeSocketServer(httpServer);
-
-  httpServer.listen(PORT, () => {
-    console.log(`Server running in ${config.env} mode on port ${PORT}`);
-  });
 };
 
 startServer();
