@@ -11,6 +11,7 @@ import documentRoutes from './modules/documents/documents.routes.js';
 import conversationRoutes from './modules/conversations/conversations.routes.js';
 import aiRoutes from './modules/ai/ai.routes.js';
 import learningRoutes from './modules/learning/learning.routes.js';
+import notificationRoutes from './modules/notifications/notifications.routes.js';
 
 const app: Express = express();
 
@@ -33,6 +34,7 @@ app.use('/api/v1/documents', documentRoutes);
 app.use('/api/v1/conversations', conversationRoutes);
 app.use('/api/v1/ai', aiRoutes);
 app.use('/api/v1/learning', learningRoutes);
+app.use('/api/v1/notifications', notificationRoutes);
 
 // Health check
 app.get('/health', (req: Request, res: Response) => {

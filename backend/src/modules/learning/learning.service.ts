@@ -3,8 +3,87 @@ import Flashcard, { type FlashcardDifficulty } from './flashcard.model.js';
 import Quiz from './quiz.model.js';
 import QuizAttempt from './quiz-attempt.model.js';
 import Document from '../documents/document.model.js';
+import Conversation from '../conversations/conversation.model.js';
+import Message from '../conversations/message.model.js';
 
 export class LearningService {
+  static async getProgress(userId: string) {
+    const userObjectId = new mongoose.Types.ObjectId(userId);
+    const now = new Date();
+
+    const ownedDocuments = await Document.find({ ownerId: userObjectId }).select('_id').lean();
+    const documentIds = ownedDocuments.map((document) => document._id);
+
+    const [
+      totalDocuments,
+      documentsReady,
+      totalFlashcards,
+      flashcardsDue,
+      flashcardReviewAggregate,
+      totalQuizzes,
+      quizzesCompleted,
+      averageQuizScoreAggregate,
+      ownedConversations,
+    ] = await Promise.all([
+      Document.countDocuments({ ownerId: userObjectId }),
+      Document.countDocuments({ ownerId: userObjectId, status: 'READY' }),
+      Flashcard.countDocuments({ userId: userObjectId }),
+      Flashcard.countDocuments({
+        userId: userObjectId,
+        nextReviewAt: { $lte: now },
+      }),
+      Flashcard.aggregate<{ _id: null; totalReviewed: number }>([
+        { $match: { userId: userObjectId } },
+        { $group: { _id: null, totalReviewed: { $sum: '$reviewCount' } } },
+      ]),
+      documentIds.length > 0
+        ? Quiz.countDocuments({ documentId: { $in: documentIds } })
+        : Promise.resolve(0),
+      QuizAttempt.countDocuments({ userId: userObjectId }),
+      QuizAttempt.aggregate<{ _id: null; averageScore: number }>([
+        { $match: { userId: userObjectId } },
+        {
+          $project: {
+            percentageScore: {
+              $cond: [
+                { $gt: ['$totalQuestions', 0] },
+                { $multiply: [{ $divide: ['$score', '$totalQuestions'] }, 100] },
+                0,
+              ],
+            },
+          },
+        },
+        {
+          $group: {
+            _id: null,
+            averageScore: { $avg: '$percentageScore' },
+          },
+        },
+      ]),
+      Conversation.find({ userId: userObjectId }).select('_id').lean(),
+    ]);
+
+    const conversationIds = ownedConversations.map((conversation) => conversation._id);
+    const totalChatMessages = conversationIds.length > 0
+      ? await Message.countDocuments({
+        conversationId: { $in: conversationIds },
+        role: { $in: ['user', 'assistant'] },
+      })
+      : 0;
+
+    return {
+      totalDocuments,
+      documentsReady,
+      totalFlashcards,
+      flashcardsDue,
+      flashcardsReviewed: flashcardReviewAggregate[0]?.totalReviewed ?? 0,
+      totalQuizzes,
+      quizzesCompleted,
+      averageQuizScore: Number((averageQuizScoreAggregate[0]?.averageScore ?? 0).toFixed(2)),
+      totalChatMessages,
+    };
+  }
+
   static async listFlashcards(userId: string, options: {
     documentId?: string;
     dueOnly?: boolean;

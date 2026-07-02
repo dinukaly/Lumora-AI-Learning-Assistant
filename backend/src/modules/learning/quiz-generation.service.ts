@@ -4,6 +4,7 @@ import DocumentChunk from '../documents/document-chunk.model.js';
 import Document from '../documents/document.model.js';
 import { getChatProvider } from '../ai/ai.config.js';
 import Quiz, { type IQuizQuestion, type QuizDifficulty } from './quiz.model.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 
 interface GenerateQuizInput {
   userId: string;
@@ -124,6 +125,14 @@ export class QuizGenerationService {
     });
 
     await Document.findByIdAndUpdate(input.documentId, { quizCount });
+
+    await NotificationsService.notifyQuizReady({
+      userId: input.userId,
+      documentId: input.documentId,
+      quizId: quiz.id,
+      title: document.title,
+      questionCount: quiz.questions.length,
+    });
 
     await callbacks.onStored?.();
 

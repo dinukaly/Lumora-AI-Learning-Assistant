@@ -1,3 +1,4 @@
+import mongoose from 'mongoose';
 import Notification, { type INotification, type NotificationType } from './notification.model.js';
 import { emitToUser, SOCKET_EVENTS } from '../../common/realtime/socket.js';
 
@@ -16,7 +17,96 @@ interface DocumentStatusPayload {
   processingError?: string;
 }
 
+interface SerializableNotificationShape {
+  _id: mongoose.Types.ObjectId;
+  type: NotificationType;
+  title: string;
+  body: string;
+  metadata?: Record<string, unknown>;
+  readAt?: Date | null;
+  createdAt: Date;
+}
+
 export class NotificationsService {
+  static async listNotifications(userId: string, options: {
+    unreadOnly?: boolean;
+    page: number;
+    limit: number;
+  }) {
+    const filter: Record<string, unknown> = {
+      userId: new mongoose.Types.ObjectId(userId),
+    };
+
+    if (options.unreadOnly) {
+      filter.readAt = { $exists: false };
+    }
+
+    const skip = (options.page - 1) * options.limit;
+
+    const [notifications, total, unreadCount] = await Promise.all([
+      Notification.find(filter)
+        .sort({ createdAt: -1 })
+        .skip(skip)
+        .limit(options.limit)
+        .lean(),
+      Notification.countDocuments(filter),
+      Notification.countDocuments({
+        userId: new mongoose.Types.ObjectId(userId),
+        readAt: { $exists: false },
+      }),
+    ]);
+
+    return {
+      notifications: notifications.map((notification) => this.serializeNotification(notification)),
+      unreadCount,
+      total,
+      page: options.page,
+      totalPages: Math.ceil(total / options.limit),
+    };
+  }
+
+  static async markAsRead(userId: string, notificationId: string) {
+    if (!mongoose.Types.ObjectId.isValid(notificationId)) {
+      throw new Error('Invalid notification ID');
+    }
+
+    const notification = await Notification.findOne({
+      _id: notificationId,
+      userId: new mongoose.Types.ObjectId(userId),
+    });
+
+    if (!notification) {
+      throw new Error('Notification not found');
+    }
+
+    if (!notification.readAt) {
+      notification.readAt = new Date();
+      await notification.save();
+    }
+
+    return {
+      id: notification.id,
+      readAt: notification.readAt,
+    };
+  }
+
+  static async markAllAsRead(userId: string) {
+    const readAt = new Date();
+    await Notification.updateMany(
+      {
+        userId: new mongoose.Types.ObjectId(userId),
+        readAt: { $exists: false },
+      },
+      {
+        $set: { readAt },
+      },
+    );
+
+    return {
+      message: 'All notifications marked as read',
+    };
+  }
+
   static async createNotification(input: NotificationInput) {
     const notification = await Notification.create(input);
     emitToUser(input.userId, SOCKET_EVENTS.notificationNew, {
@@ -78,11 +168,49 @@ export class NotificationsService {
     return notification;
   }
 
+  static async notifyFlashcardsReady(input: {
+    userId: string;
+    documentId: string;
+    title: string;
+    createdCount: number;
+  }) {
+    return this.createNotification({
+      userId: input.userId,
+      type: 'FLASHCARDS_READY',
+      title: 'Flashcards generated',
+      body: `${input.createdCount} flashcards are ready for ${input.title}`,
+      metadata: {
+        documentId: input.documentId,
+        createdCount: input.createdCount,
+      },
+    });
+  }
+
+  static async notifyQuizReady(input: {
+    userId: string;
+    documentId: string;
+    quizId: string;
+    title: string;
+    questionCount: number;
+  }) {
+    return this.createNotification({
+      userId: input.userId,
+      type: 'QUIZ_READY',
+      title: 'Quiz generated',
+      body: `${input.questionCount} questions are ready for ${input.title}`,
+      metadata: {
+        documentId: input.documentId,
+        quizId: input.quizId,
+        questionCount: input.questionCount,
+      },
+    });
+  }
+
   static emitDocumentStatus(userId: string, payload: DocumentStatusPayload) {
     emitToUser(userId, SOCKET_EVENTS.documentStatus, payload);
   }
 
-  static serializeNotification(notification: INotification) {
+  static serializeNotification(notification: SerializableNotificationShape) {
     return {
       id: notification._id.toString(),
       type: notification.type,

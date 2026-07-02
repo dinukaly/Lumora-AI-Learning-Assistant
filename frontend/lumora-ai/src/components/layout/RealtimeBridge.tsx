@@ -17,7 +17,7 @@ interface DocumentStatusEvent {
 interface NotificationEvent {
   notification: {
     id: string
-    type: 'DOCUMENT_READY' | 'PROCESSING_FAILED' | string
+    type: 'DOCUMENT_READY' | 'PROCESSING_FAILED' | 'FLASHCARDS_READY' | 'QUIZ_READY' | string
     title: string
     body: string
     metadata?: Record<string, unknown>
@@ -69,11 +69,19 @@ export function RealtimeBridge() {
       apiSlice.util.invalidateTags([
         { type: 'Documents', id: event.documentId },
         { type: 'Documents', id: 'LIST' },
+        { type: 'Progress', id: 'SUMMARY' },
       ]),
     )
   })
 
   const handleNotification = useEffectEvent((event: NotificationEvent) => {
+    dispatch(
+      apiSlice.util.invalidateTags([
+        { type: 'Notifications', id: 'LIST' },
+        { type: 'Progress', id: 'SUMMARY' },
+      ]),
+    )
+
     if (event.notification.type === 'DOCUMENT_READY') {
       dispatch(
         enqueueToast({
@@ -93,6 +101,25 @@ export function RealtimeBridge() {
           title: event.notification.title,
           description: event.notification.body,
           tone: 'error',
+        }),
+      )
+      return
+    }
+
+    if (event.notification.type === 'FLASHCARDS_READY' || event.notification.type === 'QUIZ_READY') {
+      dispatch(
+        apiSlice.util.invalidateTags([
+          { type: 'Flashcards', id: 'LIST' },
+          { type: 'Quizzes', id: 'LIST' },
+        ]),
+      )
+
+      dispatch(
+        enqueueToast({
+          id: event.notification.id,
+          title: event.notification.title,
+          description: event.notification.body,
+          tone: 'info',
         }),
       )
     }

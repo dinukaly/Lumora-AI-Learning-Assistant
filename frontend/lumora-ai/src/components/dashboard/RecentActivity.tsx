@@ -1,7 +1,7 @@
 import { FileText, GraduationCap, HelpCircle, type LucideIcon } from 'lucide-react'
 import { Card, CardContent, CardHeader, CardTitle } from '../ui/card'
 
-interface ActivityItem {
+export interface ActivityItem {
   id: string
   icon: LucideIcon
   iconBgClass: string
@@ -50,30 +50,58 @@ const activities: ActivityItem[] = [
   },
 ]
 
-const RecentActivity = () => {
+interface RecentActivityProps {
+  items?: ActivityItem[]
+  title?: string
+  loading?: boolean
+  emptyMessage?: string
+}
+
+const RecentActivity = ({
+  items = activities,
+  title = 'Recent Activity',
+  loading = false,
+  emptyMessage = 'Activity will appear here as you learn with Lumora.',
+}: RecentActivityProps) => {
   return (
     <Card>
       <CardHeader>
-        <CardTitle>Recent Activity</CardTitle>
+        <CardTitle>{title}</CardTitle>
       </CardHeader>
       <CardContent className="p-0">
-        <ul className="divide-y divide-gray-100">
-          {activities.map((item) => {
-            const Icon = item.icon
-            return (
-              <li key={item.id} className="flex items-start gap-4 px-6 py-4">
-                <div className={`rounded-lg p-2 ${item.iconBgClass}`}>
-                  <Icon className={`h-4 w-4 ${item.iconColorClass}`} />
+        {loading ? (
+          <ul className="divide-y divide-gray-100">
+            {Array.from({ length: 4 }).map((_, index) => (
+              <li key={index} className="flex items-start gap-4 px-6 py-4">
+                <div className="h-8 w-8 rounded-lg bg-gray-100" />
+                <div className="flex-1 space-y-2">
+                  <div className="h-4 w-40 rounded bg-gray-100" />
+                  <div className="h-3 w-56 rounded bg-gray-50" />
                 </div>
-                <div className="flex-1 space-y-1">
-                  <p className="text-sm font-medium text-gray-900">{item.title}</p>
-                  <p className="text-sm text-gray-500">{item.description}</p>
-                </div>
-                <span className="whitespace-nowrap text-xs text-gray-400">{item.time}</span>
               </li>
-            )
-          })}
-        </ul>
+            ))}
+          </ul>
+        ) : items.length > 0 ? (
+          <ul className="divide-y divide-gray-100">
+            {items.map((item) => {
+              const Icon = item.icon
+              return (
+                <li key={item.id} className="flex items-start gap-4 px-6 py-4">
+                  <div className={`rounded-lg p-2 ${item.iconBgClass}`}>
+                    <Icon className={`h-4 w-4 ${item.iconColorClass}`} />
+                  </div>
+                  <div className="flex-1 space-y-1">
+                    <p className="text-sm font-medium text-gray-900">{item.title}</p>
+                    <p className="text-sm text-gray-500">{item.description}</p>
+                  </div>
+                  <span className="whitespace-nowrap text-xs text-gray-400">{item.time}</span>
+                </li>
+              )
+            })}
+          </ul>
+        ) : (
+          <div className="px-6 py-8 text-sm text-gray-500">{emptyMessage}</div>
+        )}
       </CardContent>
     </Card>
   )

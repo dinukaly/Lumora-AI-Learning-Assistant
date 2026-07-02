@@ -6,6 +6,16 @@ import { LearningService } from './learning.service.js';
 const VALID_DIFFICULTIES = new Set(['EASY', 'MEDIUM', 'HARD']);
 
 export class LearningController {
+  static async getProgress(req: AuthRequest, res: Response) {
+    try {
+      const userId = req.user!.userId;
+      const result = await LearningService.getProgress(userId);
+      res.status(200).json(result);
+    } catch (error: any) {
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+    }
+  }
+
   static async listFlashcards(req: AuthRequest, res: Response) {
     try {
       const userId = req.user!.userId;
