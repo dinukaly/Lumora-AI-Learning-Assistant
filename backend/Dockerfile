@@ -16,7 +16,9 @@ RUN npm run build
 FROM base AS runtime
 
 ENV NODE_ENV=production
-ENV PYTHON_EXECUTABLE=python3
+ENV VIRTUAL_ENV=/opt/venv
+ENV PATH="/opt/venv/bin:$PATH"
+ENV PYTHON_EXECUTABLE=/opt/venv/bin/python
 ENV LUMORA_RUNTIME_ROLE=api
 
 RUN apt-get update \
@@ -29,8 +31,9 @@ RUN npm ci --omit=dev
 COPY --from=build /app/dist ./dist
 COPY python-worker ./python-worker
 
-RUN pip3 install --no-cache-dir -r python-worker/requirements.txt \
-  && ln -sf /usr/bin/python3 /usr/local/bin/python
+RUN python3 -m venv /opt/venv \
+  && /opt/venv/bin/pip install --no-cache-dir -r python-worker/requirements.txt \
+  && ln -sf /opt/venv/bin/python /usr/local/bin/python
 
 EXPOSE 5000
 
