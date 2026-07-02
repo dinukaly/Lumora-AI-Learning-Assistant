@@ -19,6 +19,7 @@ test('buildPrompt includes context, chunks, and user request', () => {
     documentId: 'doc123',
     documentTitle: 'Biology Notes',
     documentSummary: 'A short biology overview.',
+    queryScope: 'DOCUMENT',
     recentMessages: [
       {
         role: 'user',
