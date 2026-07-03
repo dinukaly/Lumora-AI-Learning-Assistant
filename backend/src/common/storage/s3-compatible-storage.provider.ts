@@ -23,7 +23,7 @@ export class S3CompatibleStorageProvider implements StorageProvider {
         accessKeyId: config.storage.accessKeyId,
         secretAccessKey: config.storage.secretAccessKey,
       },
-      forcePathStyle: true,
+      forcePathStyle: config.storage.forcePathStyle,
     });
     this.bucketName = config.storage.bucketName;
     this.endpoint = config.storage.endpoint.replace(/\/+$/, '');
@@ -35,11 +35,17 @@ export class S3CompatibleStorageProvider implements StorageProvider {
     try {
       await this.client.send(new HeadBucketCommand({ Bucket: this.bucketName }));
     } catch (error: any) {
-      // If bucket doesn't exist, create it (mainly for local development/MinIO)
-      if (error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404) {
+      const bucketMissing = error.name === 'NotFound' || error.$metadata?.httpStatusCode === 404;
+
+      // Auto-create is useful for local MinIO, but production buckets should already exist.
+      if (bucketMissing && config.storage.autoCreateBucket) {
         console.log(`Bucket "${this.bucketName}" not found. Creating it...`);
         await this.client.send(new CreateBucketCommand({ Bucket: this.bucketName }));
         console.log(`Bucket "${this.bucketName}" created successfully.`);
+      } else if (bucketMissing) {
+        throw new Error(
+          `Bucket "${this.bucketName}" was not found. Create it in your storage provider or enable S3_AUTO_CREATE_BUCKET for local development.`,
+        );
       } else {
         throw error;
       }
@@ -59,7 +65,7 @@ export class S3CompatibleStorageProvider implements StorageProvider {
       }),
     );
 
-    return `${this.endpoint}/${this.bucketName}/${key}`;
+    return buildStorageUrl(this.bucketName, key, this.endpoint);
   }
 
   async download(key: string): Promise<Buffer> {
@@ -85,4 +91,17 @@ export class S3CompatibleStorageProvider implements StorageProvider {
       }),
     );
   }
+}
+
+function buildStorageUrl(bucketName: string, key: string, endpoint: string) {
+  const encodedKey = key
+    .split('/')
+    .map((segment) => encodeURIComponent(segment))
+    .join('/');
+
+  if (config.storage.publicBaseUrl) {
+    return `${config.storage.publicBaseUrl.replace(/\/+$/, '')}/${encodedKey}`;
+  }
+
+  return `${endpoint}/${bucketName}/${encodedKey}`;
 }

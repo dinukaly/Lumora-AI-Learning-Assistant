@@ -96,7 +96,7 @@ export class OpenRouterChatProvider implements ChatProvider {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.apiKey}`,
-        'HTTP-Referer': 'http://localhost:5173',
+        'HTTP-Referer': config.frontendUrl,
         'X-Title': 'Lumora',
       },
       body: JSON.stringify(body),
@@ -183,7 +183,7 @@ export class OpenRouterChatProvider implements ChatProvider {
       headers: {
         'Content-Type': 'application/json',
         Authorization: `Bearer ${this.apiKey}`,
-        'HTTP-Referer': 'http://localhost:5173',
+        'HTTP-Referer': config.frontendUrl,
         'X-Title': 'Lumora',
       },
       body: JSON.stringify(body),

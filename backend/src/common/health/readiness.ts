@@ -1,6 +1,6 @@
 import { Redis } from 'ioredis';
 import mongoose from 'mongoose';
-import { config } from '../../config/index.js';
+import { getRedisClientOptions } from '../redis/connection.js';
 
 let readinessRedisClient: Redis | null = null;
 
@@ -74,15 +74,12 @@ async function checkRedisReadiness() {
 
 function getReadinessRedisClient() {
   if (!readinessRedisClient) {
-    readinessRedisClient = new Redis({
-      host: config.redis.host,
-      port: config.redis.port,
-      password: config.redis.password,
+    readinessRedisClient = new Redis(getRedisClientOptions({
       lazyConnect: true,
       enableOfflineQueue: false,
       maxRetriesPerRequest: 1,
       connectTimeout: 5000,
-    });
+    }));
   }
 
   return readinessRedisClient;

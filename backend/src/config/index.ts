@@ -73,13 +73,19 @@ export const config = {
     secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || 'minioadmin',
     bucketName: process.env.S3_BUCKET_NAME || 'lumora-documents',
     useSsl: process.env.S3_USE_SSL === 'true',
+    publicBaseUrl: process.env.S3_PUBLIC_BASE_URL || '',
+    forcePathStyle: parseBoolean(process.env.S3_FORCE_PATH_STYLE, true),
+    autoCreateBucket: parseBoolean(process.env.S3_AUTO_CREATE_BUCKET, environment !== 'production'),
   },
 
   // Redis — BullMQ job queue
   redis: {
+    url: process.env.REDIS_URL || '',
     host: process.env.REDIS_HOST || 'localhost',
     port: parseInt(process.env.REDIS_PORT || '6379', 10),
+    username: process.env.REDIS_USERNAME || undefined,
     password: process.env.REDIS_PASSWORD || undefined,
+    tls: parseBoolean(process.env.REDIS_TLS, false),
   },
 
   rateLimit: {
@@ -130,4 +136,12 @@ function parseTrustProxy(value: string | undefined, env: string) {
 
   const numericValue = Number(value);
   return Number.isNaN(numericValue) ? value : numericValue;
+}
+
+function parseBoolean(value: string | undefined, fallback: boolean) {
+  if (value === undefined) {
+    return fallback;
+  }
+
+  return value === 'true';
 }

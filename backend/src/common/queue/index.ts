@@ -1,7 +1,7 @@
 import { Queue, ConnectionOptions } from 'bullmq';
 import mongoose from 'mongoose';
-import { config } from '../../config/index.js';
 import JobModel from '../../modules/jobs/job.model.js';
+import { getRedisConnectionOptions } from '../redis/connection.js';
 
 export const DOCUMENT_QUEUE_NAME = 'document-processing';
 export const TEXT_EXTRACTION_JOB = 'TEXT_EXTRACTION';
@@ -43,11 +43,7 @@ export type DocumentQueueJobData =
   | FlashcardGenerationJobData
   | QuizGenerationJobData;
 
-export const redisConnection: ConnectionOptions = {
-  host: config.redis.host,
-  port: config.redis.port,
-  password: config.redis.password,
-};
+export const redisConnection: ConnectionOptions = getRedisConnectionOptions();
 
 let documentQueueInstance: Queue<DocumentQueueJobData> | null = null;
 
