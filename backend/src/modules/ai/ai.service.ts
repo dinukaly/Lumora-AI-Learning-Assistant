@@ -218,8 +218,8 @@ export class AIService implements AIOrchestrator {
     const chunkBlock = context.retrievedChunks.length > 0
       ? context.retrievedChunks
           .map(
-            (chunk, index) =>
-              `[Chunk ${index + 1} | page ${chunk.pageNumber ?? 'unknown'} | score ${chunk.score.toFixed(3)}]\n${chunk.text}`,
+            (chunk) =>
+              `[Page ${chunk.pageNumber ?? 'unknown'}]\n${chunk.text}`,
           )
           .join('\n\n')
       : '[No relevant chunks were retrieved for this question.]';
@@ -307,8 +307,28 @@ function buildCitations(chunks: DocumentChunkSearchResult[]): Citation[] {
     chunkId: chunk.chunkId,
     documentId: chunk.documentId,
     pageNumber: chunk.pageNumber ?? 0,
-    snippet: chunk.text.slice(0, 220),
+    snippet: buildCitationSnippet(chunk.text),
   }));
+}
+
+function buildCitationSnippet(text: string) {
+  const normalized = text.replace(/\s+/g, ' ').trim();
+  if (!normalized) {
+    return '';
+  }
+
+  const sentenceBoundary = normalized.match(/^(.{1,220}?[.!?])(?:\s|$)/);
+  if (sentenceBoundary?.[1]) {
+    return sentenceBoundary[1];
+  }
+
+  if (normalized.length <= 220) {
+    return normalized;
+  }
+
+  const truncated = normalized.slice(0, 220);
+  const lastSpace = truncated.lastIndexOf(' ');
+  return `${(lastSpace > 0 ? truncated.slice(0, lastSpace) : truncated).trim()}...`;
 }
 
 function buildEphemeralConversationId(documentId: string) {
@@ -424,7 +444,9 @@ function buildPromptRules(action: AIAction, context: AIContext) {
     return [
       '- Use only the provided document context.',
       '- If the answer is not supported by the context, say the document does not cover it.',
-      '- Cite the page number when you rely on a chunk.',
+      '- Write a clean final answer, not notes about retrieval.',
+      '- Do not mention chunk numbers, retrieval scores, or raw excerpt labels.',
+      '- Mention page numbers naturally only when they help clarify the answer.',
     ];
   }
 
@@ -449,7 +471,10 @@ function buildPromptRules(action: AIAction, context: AIContext) {
   return [
     '- Use only the provided document context.',
     '- If the answer is not supported by the context, say the document does not cover it.',
-    '- Cite the page number when you rely on a chunk.',
+    '- Give the final answer as plain prose or bullets, not as source notes.',
+    '- Do not mention chunk numbers, retrieval scores, bracketed citation markers, or raw excerpt labels.',
+    '- Do not append a separate list of page excerpts; supporting citations are attached outside the answer.',
+    '- Mention page numbers naturally only when they materially help the explanation.',
   ];
 }
 
