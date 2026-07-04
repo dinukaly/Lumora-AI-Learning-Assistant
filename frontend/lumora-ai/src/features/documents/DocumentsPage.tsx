@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import { Loader2, Plus, FileText, AlertCircle } from 'lucide-react'
 import { useListDocumentsQuery, useUploadDocumentMutation, useDeleteDocumentMutation } from '@/features/documents/documentsApi'
 import { DocumentCard } from '@/components/documents/DocumentCard'
@@ -7,11 +7,25 @@ import { ConfirmDialog } from '@/components/ui/confirm-dialog'
 
 const DocumentsPage = () => {
   const [deleteTarget, setDeleteTarget] = useState<{ id: string; title: string } | null>(null)
+  const [shouldPollDocuments, setShouldPollDocuments] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
 
-  const { data, isLoading, isError } = useListDocumentsQuery()
+  const { data, isLoading, isError, refetch } = useListDocumentsQuery(undefined, {
+    pollingInterval: shouldPollDocuments ? 5000 : 0,
+    refetchOnFocus: true,
+    refetchOnReconnect: true,
+    skipPollingIfUnfocused: true,
+  })
   const [uploadDocument, { isLoading: isUploading }] = useUploadDocumentMutation()
   const [deleteDocument, { isLoading: isDeleting }] = useDeleteDocumentMutation()
+
+  useEffect(() => {
+    const hasActiveDocument = data?.documents.some((document) =>
+      document.status === 'UPLOADED' || document.status === 'PROCESSING',
+    ) ?? false
+
+    setShouldPollDocuments(hasActiveDocument)
+  }, [data?.documents])
 
   const handleUploadClick = () => {
     fileInputRef.current?.click()
@@ -27,6 +41,8 @@ const DocumentsPage = () => {
 
     try {
       await uploadDocument(formData).unwrap()
+      setShouldPollDocuments(true)
+      void refetch()
     } catch {
       // Error handling could show a toast in the future
     }
