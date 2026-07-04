@@ -24,6 +24,7 @@ import {
   Sparkles,
   User,
 } from 'lucide-react'
+import { MarkdownContent } from '@/components/ui/markdown-content'
 
 interface WorkspaceChatTabProps {
   document: DocumentData
@@ -433,7 +434,14 @@ function MessageBubble({
                 : 'bg-gray-900 text-white'
             }`}
           >
-            <p className="whitespace-pre-wrap">{message.content}</p>
+            {isAssistant ? (
+              <MarkdownContent
+                content={message.content}
+                className="text-gray-800 [&_*]:text-inherit [&_blockquote]:text-gray-600 [&_code]:text-inherit [&_h1]:text-gray-900 [&_h2]:text-gray-900 [&_h3]:text-gray-900"
+              />
+            ) : (
+              <p className="whitespace-pre-wrap">{message.content}</p>
+            )}
           </div>
 
           {isAssistant && message.citations?.length ? (

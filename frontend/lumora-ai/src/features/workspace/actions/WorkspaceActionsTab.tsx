@@ -16,6 +16,7 @@ import { useAppDispatch } from '@/app/hooks'
 import type { DocumentData } from '@/features/documents/documentsApi'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+import { MarkdownContent } from '@/components/ui/markdown-content'
 import {
   useExplainConceptMutation,
   useExtractConceptsMutation,
@@ -459,7 +460,10 @@ function SummaryResultsView({
         <div className="mb-2 text-xs font-semibold uppercase tracking-wide text-emerald-700">
           Saved {formatSavedDate(artifact.createdAt)}
         </div>
-        <p className="leading-7">{artifact.summary}</p>
+        <MarkdownContent
+          content={artifact.summary}
+          className="text-emerald-950 [&_*]:text-inherit [&_blockquote]:text-emerald-900/80 [&_code]:text-inherit"
+        />
       </div>
       {artifact.takeaways.length > 0 && (
         <div className="space-y-3">
@@ -547,7 +551,10 @@ function ConceptResultsView({
                 <div className="space-y-2">
                   <CardTitle className="text-lg">{concept.title}</CardTitle>
                   <CardDescription className="text-sm leading-6 text-gray-600">
-                    {concept.description}
+                    <MarkdownContent
+                      content={concept.description}
+                      className="text-gray-600 [&_*]:text-inherit [&_blockquote]:text-gray-500 [&_code]:text-inherit"
+                    />
                   </CardDescription>
                 </div>
                 <Button
@@ -711,7 +718,10 @@ function DeepDiveExplanation({
       <div className="text-xs font-semibold uppercase tracking-wide text-emerald-700">
         Detailed grounded explanation
       </div>
-      <p className="text-sm leading-7 text-emerald-950">{deepDiveResult.explanation}</p>
+      <MarkdownContent
+        content={deepDiveResult.explanation}
+        className="text-emerald-950 [&_*]:text-inherit [&_blockquote]:text-emerald-900/80 [&_code]:text-inherit"
+      />
     </div>
   )
 }
