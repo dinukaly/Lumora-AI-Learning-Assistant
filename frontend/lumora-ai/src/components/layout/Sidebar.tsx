@@ -4,6 +4,7 @@ import { useAppDispatch } from "@/app/hooks";
 import { logout } from "@/features/auth/authSlice";
 import { useLogoutMutation } from "@/features/auth/authApi";
 import { cn } from "@/lib/utils";
+import { BrandLockup } from "./Brand";
 
 const sidebarNav = [
   { to: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -37,10 +38,7 @@ export const Sidebar = ({ className, onClose }: SidebarProps) => {
   return (
     <aside className={cn("flex h-full w-64 flex-col border-r border-gray-200 bg-white", className)}>
       <div className="flex h-16 items-center justify-between border-b border-gray-200 px-6">
-        <div className="flex items-center gap-2">
-          <div className="h-8 w-8 rounded-lg bg-emerald-600" />
-          <span className="text-xl font-bold text-gray-900 font-display">Lumora</span>
-        </div>
+        <BrandLockup />
         {onClose && (
           <button onClick={onClose} className="lg:hidden text-gray-500 hover:text-gray-700">
             <X className="h-6 w-6" />

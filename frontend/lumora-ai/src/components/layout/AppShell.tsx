@@ -4,6 +4,7 @@ import { Menu } from "lucide-react";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { RealtimeBridge } from "./RealtimeBridge";
+import { BrandLockup } from "./Brand";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ToastViewport } from "@/components/ui/toast-viewport";
@@ -21,10 +22,7 @@ const AppShell = () => {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* Mobile Top Bar with Hamburger */}
         <div className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:hidden">
-          <div className="flex items-center gap-2">
-            <div className="h-8 w-8 rounded-lg bg-emerald-600" />
-            <span className="text-xl font-bold text-gray-900 font-display">Lumora</span>
-          </div>
+          <BrandLockup />
           
           <Sheet open={isMobileMenuOpen} onOpenChange={setIsMobileMenuOpen}>
             <SheetTrigger asChild>

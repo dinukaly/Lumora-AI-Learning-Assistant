@@ -3,6 +3,7 @@ import { useNavigate, Link } from 'react-router-dom'
 import { useAppDispatch } from '@/app/hooks'
 import { useLoginMutation } from './authApi'
 import { setCredentials } from './authSlice'
+import { BrandMark } from '@/components/layout/Brand'
 
 const LoginPage = () => {
   const [email, setEmail] = useState('')
@@ -26,7 +27,7 @@ const LoginPage = () => {
     <div className="flex min-h-screen items-center justify-center bg-gray-50">
       <div className="w-full max-w-md rounded-xl bg-white p-8 shadow-sm">
         <div className="mb-8 text-center">
-          <div className="mx-auto mb-4 h-12 w-12 rounded-xl bg-emerald-600" />
+          <BrandMark className="mx-auto mb-4 h-12 w-12 rounded-xl" />
           <h1 className="text-2xl font-bold text-gray-900">Welcome back</h1>
           <p className="mt-1 text-gray-500">Sign in to continue to Lumora</p>
         </div>
