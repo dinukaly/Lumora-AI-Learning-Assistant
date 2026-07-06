@@ -13,5 +13,7 @@ router.get('/documents', AdminController.listDocuments);
 router.delete('/documents/:id', AdminController.deleteDocument);
 router.get('/jobs', AdminController.listJobs);
 router.post('/jobs/:id/retry', AdminController.retryJob);
+router.get('/stats', AdminController.getStats);
+router.get('/analytics/usage', AdminController.getUsageAnalytics);
 
 export default router;

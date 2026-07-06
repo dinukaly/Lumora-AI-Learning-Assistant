@@ -2,6 +2,7 @@ import { Response } from 'express';
 import { ZodError } from 'zod';
 import { AuthRequest } from '../../common/middleware/auth.js';
 import {
+  getAdminUsageAnalyticsSchema,
   listAdminDocumentsSchema,
   listAdminJobsSchema,
   listAdminUsersSchema,
@@ -126,6 +127,37 @@ export class AdminController {
       }
 
       res.status(500).json({ error: { code: 'INTERNAL_ERROR', message } });
+    }
+  }
+
+  static async getStats(req: AuthRequest, res: Response) {
+    try {
+      void req;
+      const stats = await AdminService.getStats();
+      res.json(stats);
+    } catch (error: unknown) {
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
+    }
+  }
+
+  static async getUsageAnalytics(req: AuthRequest, res: Response) {
+    try {
+      const query = getAdminUsageAnalyticsSchema.parse(req.query);
+      const analytics = await AdminService.getUsageAnalytics(query);
+      res.json(analytics);
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
+      }
+
+      if (
+        getErrorMessage(error) === 'Invalid date range'
+        || getErrorMessage(error) === '"from" must be less than or equal to "to"'
+      ) {
+        return res.status(400).json({ error: { code: 'BAD_REQUEST', message: getErrorMessage(error) } });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
     }
   }
 }
