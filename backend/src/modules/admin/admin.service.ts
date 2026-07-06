@@ -2,9 +2,11 @@ import mongoose from 'mongoose';
 import User, { IUser } from '../users/user.model.js';
 import Document, { DocumentStatus } from '../documents/document.model.js';
 import JobModel, { JobStatus, JobType } from '../jobs/job.model.js';
+import UsageEvent from '../analytics/usage-event.model.js';
 import { DocumentsService } from '../documents/documents.service.js';
 import { retryStoredJob } from '../../common/queue/index.js';
 import type {
+  GetAdminUsageAnalyticsDTO,
   ListAdminDocumentsDTO,
   ListAdminJobsDTO,
   ListAdminUsersDTO,
@@ -88,6 +90,25 @@ type AdminJobListResult = {
   total: number;
   page: number;
   totalPages: number;
+};
+
+type AdminStatsResult = {
+  totalUsers: number;
+  activeUsers: number;
+  totalDocuments: number;
+  processingFailures: number;
+  totalAIRequests: number;
+  totalTokensUsed: number;
+  estimatedCost: number;
+};
+
+type AdminUsageAnalyticsResult = {
+  data: Array<{
+    date: string;
+    requests: number;
+    tokens: number;
+    cost: number;
+  }>;
 };
 
 export class AdminService {
@@ -279,6 +300,93 @@ export class AdminService {
 
     return mapAdminJobSummary(populatedJob);
   }
+
+  static async getStats(): Promise<AdminStatsResult> {
+    const activeThreshold = new Date();
+    activeThreshold.setDate(activeThreshold.getDate() - 30);
+
+    const [
+      totalUsers,
+      activeUsers,
+      totalDocuments,
+      processingFailures,
+      usageSummary,
+    ] = await Promise.all([
+      User.countDocuments(),
+      User.countDocuments({
+        disabledAt: null,
+        lastLoginAt: { $gte: activeThreshold },
+      }),
+      Document.countDocuments(),
+      Document.countDocuments({ status: 'FAILED' }),
+      UsageEvent.aggregate<{ _id: null; totalRequests: number; totalTokens: number; totalCost: number }>([
+        {
+          $group: {
+            _id: null,
+            totalRequests: { $sum: 1 },
+            totalTokens: { $sum: '$tokensUsed' },
+            totalCost: { $sum: { $ifNull: ['$costEstimate', 0] } },
+          },
+        },
+      ]),
+    ]);
+
+    return {
+      totalUsers,
+      activeUsers,
+      totalDocuments,
+      processingFailures,
+      totalAIRequests: usageSummary[0]?.totalRequests ?? 0,
+      totalTokensUsed: usageSummary[0]?.totalTokens ?? 0,
+      estimatedCost: Number(((usageSummary[0]?.totalCost ?? 0) as number).toFixed(4)),
+    };
+  }
+
+  static async getUsageAnalytics(query: GetAdminUsageAnalyticsDTO): Promise<AdminUsageAnalyticsResult> {
+    const { from, to, granularity } = query;
+    const range = resolveUsageAnalyticsRange(from, to);
+    const format = granularity === 'hour' ? '%Y-%m-%dT%H:00:00.000Z' : '%Y-%m-%d';
+
+    const data = await UsageEvent.aggregate<{
+      _id: string;
+      requests: number;
+      tokens: number;
+      cost: number;
+    }>([
+      {
+        $match: {
+          createdAt: {
+            $gte: range.from,
+            $lte: range.to,
+          },
+        },
+      },
+      {
+        $group: {
+          _id: {
+            $dateToString: {
+              format,
+              date: '$createdAt',
+              timezone: 'UTC',
+            },
+          },
+          requests: { $sum: 1 },
+          tokens: { $sum: '$tokensUsed' },
+          cost: { $sum: { $ifNull: ['$costEstimate', 0] } },
+        },
+      },
+      { $sort: { _id: 1 } },
+    ]);
+
+    return {
+      data: data.map((entry) => ({
+        date: entry._id,
+        requests: entry.requests,
+        tokens: entry.tokens,
+        cost: Number(entry.cost.toFixed(4)),
+      })),
+    };
+  }
 }
 
 function mapAdminUserSummary(user: Omit<IUser, 'comparePassword'> | Record<string, unknown>): AdminUserSummary {
@@ -357,4 +465,23 @@ function escapeRegex(value: string) {
 
 function asRecord(value: unknown) {
   return value && typeof value === 'object' ? (value as Record<string, unknown>) : undefined;
+}
+
+function resolveUsageAnalyticsRange(from?: string, to?: string) {
+  const now = new Date();
+  const defaultFrom = new Date(now);
+  defaultFrom.setDate(defaultFrom.getDate() - 30);
+
+  const parsedFrom = from ? new Date(from) : defaultFrom;
+  const parsedTo = to ? new Date(to) : now;
+
+  if (Number.isNaN(parsedFrom.getTime()) || Number.isNaN(parsedTo.getTime())) {
+    throw new Error('Invalid date range');
+  }
+
+  if (parsedFrom > parsedTo) {
+    throw new Error('"from" must be less than or equal to "to"');
+  }
+
+  return { from: parsedFrom, to: parsedTo };
 }
