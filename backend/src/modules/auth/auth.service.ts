@@ -1,4 +1,4 @@
-import User, { IUser } from '../users/user.model.js';
+import User from '../users/user.model.js';
 import { RegisterDTO, LoginDTO } from './auth.dto.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../common/utils/jwt.js';
 
@@ -39,6 +39,10 @@ export class AuthService {
       throw new Error('Invalid credentials');
     }
 
+    if (user.disabledAt) {
+      throw new Error('Account is disabled');
+    }
+
     const isMatch = await user.comparePassword(data.password);
     if (!isMatch) {
       throw new Error('Invalid credentials');
@@ -64,22 +68,28 @@ export class AuthService {
   }
 
   static async refresh(token: string) {
+    let payload: { userId: string; role: 'USER' | 'ADMIN' };
+
     try {
-      const payload = verifyRefreshToken(token);
-      const user = await User.findById(payload.userId);
-      
-      if (!user) {
-        throw new Error('User not found');
-      }
-
-      const newPayload = { userId: user._id.toString(), role: user.role };
-      const accessToken = generateAccessToken(newPayload);
-      const refreshToken = generateRefreshToken(newPayload);
-
-      return { accessToken, refreshToken };
-    } catch (error) {
+      payload = verifyRefreshToken(token);
+    } catch {
       throw new Error('Invalid refresh token');
     }
+
+    const user = await User.findById(payload.userId);
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    if (user.disabledAt) {
+      throw new Error('Account is disabled');
+    }
+
+    const newPayload = { userId: user._id.toString(), role: user.role };
+    const accessToken = generateAccessToken(newPayload);
+    const refreshToken = generateRefreshToken(newPayload);
+
+    return { accessToken, refreshToken };
   }
 
   static async logout() {

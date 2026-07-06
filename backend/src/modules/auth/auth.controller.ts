@@ -37,6 +37,9 @@ export class AuthController {
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
       }
+      if (error.message === 'Account is disabled') {
+        return res.status(403).json({ error: { code: 'FORBIDDEN', message: error.message } });
+      }
       res.status(401).json({ error: { code: 'UNAUTHORIZED', message: error.message } });
     }
   }
@@ -53,6 +56,9 @@ export class AuthController {
       res.cookie('refreshToken', newRefreshToken, COOKIE_OPTIONS);
       res.status(200).json(result);
     } catch (error: any) {
+      if (error.message === 'Account is disabled') {
+        return res.status(403).json({ error: { code: 'FORBIDDEN', message: error.message } });
+      }
       res.status(401).json({ error: { code: 'UNAUTHORIZED', message: error.message } });
     }
   }

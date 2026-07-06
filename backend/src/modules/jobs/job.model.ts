@@ -17,6 +17,7 @@ export interface IJob extends Document {
   error?: string;
   attempts: number;
   bullJobId?: string;
+  payload?: Record<string, unknown>;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -39,6 +40,7 @@ const JobSchema: Schema = new Schema(
     error: { type: String },
     attempts: { type: Number, default: 0 },
     bullJobId: { type: String },
+    payload: { type: Schema.Types.Mixed, default: undefined },
   },
   {
     timestamps: true,

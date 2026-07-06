@@ -1,6 +1,6 @@
-import { BookOpen, Brain, GraduationCap, LayoutDashboard, User, LogOut, X } from "lucide-react";
+import { BookOpen, Brain, GraduationCap, LayoutDashboard, User, LogOut, Shield, X } from "lucide-react";
 import { Link, useLocation, useNavigate } from "react-router-dom";
-import { useAppDispatch } from "@/app/hooks";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
 import { logout } from "@/features/auth/authSlice";
 import { useLogoutMutation } from "@/features/auth/authApi";
 import { cn } from "@/lib/utils";
@@ -23,7 +23,9 @@ export const Sidebar = ({ className, onClose }: SidebarProps) => {
   const location = useLocation();
   const dispatch = useAppDispatch();
   const navigate = useNavigate();
+  const user = useAppSelector((state) => state.auth.user);
   const [logoutApi] = useLogoutMutation();
+  const isAdmin = user?.role === 'ADMIN';
 
   const handleLogout = async () => {
     try {
@@ -67,6 +69,27 @@ export const Sidebar = ({ className, onClose }: SidebarProps) => {
             </Link>
           );
         })}
+
+        {isAdmin && (
+          <>
+            <div className="px-3 pt-4 text-xs font-semibold uppercase tracking-[0.08em] text-gray-400">
+              Admin
+            </div>
+            <Link
+              to="/admin"
+              onClick={onClose}
+              className={cn(
+                "flex items-center gap-3 rounded-lg px-3 py-2 text-sm font-medium transition-colors",
+                location.pathname.startsWith('/admin')
+                  ? "bg-sky-50 text-sky-700"
+                  : "text-gray-600 hover:bg-gray-50 hover:text-gray-900"
+              )}
+            >
+              <Shield className="h-5 w-5" />
+              Admin Console
+            </Link>
+          </>
+        )}
       </nav>
 
       <div className="mt-auto border-t border-gray-200 p-4">
