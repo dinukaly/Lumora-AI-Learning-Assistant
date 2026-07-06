@@ -47,9 +47,15 @@ export const getAdminUsageAnalyticsSchema = z.object({
   granularity: usageGranularitySchema.default('day'),
 });
 
+export const broadcastAdminNotificationSchema = z.object({
+  title: z.string().trim().min(1).max(120),
+  body: z.string().trim().min(1).max(1000),
+});
+
 export type ListAdminUsersDTO = z.infer<typeof listAdminUsersSchema>;
 export type UpdateAdminUserRoleDTO = z.infer<typeof updateAdminUserRoleSchema>;
 export type SetAdminUserDisabledDTO = z.infer<typeof setAdminUserDisabledSchema>;
 export type ListAdminDocumentsDTO = z.infer<typeof listAdminDocumentsSchema>;
 export type ListAdminJobsDTO = z.infer<typeof listAdminJobsSchema>;
 export type GetAdminUsageAnalyticsDTO = z.infer<typeof getAdminUsageAnalyticsSchema>;
+export type BroadcastAdminNotificationDTO = z.infer<typeof broadcastAdminNotificationSchema>;
