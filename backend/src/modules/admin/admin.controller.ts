@@ -2,6 +2,8 @@ import { Response } from 'express';
 import { ZodError } from 'zod';
 import { AuthRequest } from '../../common/middleware/auth.js';
 import {
+  listAdminDocumentsSchema,
+  listAdminJobsSchema,
   listAdminUsersSchema,
   setAdminUserDisabledSchema,
   updateAdminUserRoleSchema,
@@ -56,6 +58,74 @@ export class AdminController {
       }
 
       res.status(400).json({ error: { code: 'BAD_REQUEST', message: getErrorMessage(error) } });
+    }
+  }
+
+  static async listDocuments(req: AuthRequest, res: Response) {
+    try {
+      const query = listAdminDocumentsSchema.parse(req.query);
+      const result = await AdminService.listDocuments(query);
+      res.json(result);
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
+      }
+
+      res.status(400).json({ error: { code: 'BAD_REQUEST', message: getErrorMessage(error) } });
+    }
+  }
+
+  static async deleteDocument(req: AuthRequest, res: Response) {
+    try {
+      await AdminService.deleteDocument(req.params.id);
+      res.json({ message: 'Document deleted successfully' });
+    } catch (error: unknown) {
+      if (getErrorMessage(error) === 'Invalid document ID') {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message: getErrorMessage(error) } });
+      }
+
+      if (getErrorMessage(error) === 'Document not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: getErrorMessage(error) } });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
+    }
+  }
+
+  static async listJobs(req: AuthRequest, res: Response) {
+    try {
+      const query = listAdminJobsSchema.parse(req.query);
+      const result = await AdminService.listJobs(query);
+      res.json(result);
+    } catch (error: unknown) {
+      if (error instanceof ZodError) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
+      }
+
+      res.status(400).json({ error: { code: 'BAD_REQUEST', message: getErrorMessage(error) } });
+    }
+  }
+
+  static async retryJob(req: AuthRequest, res: Response) {
+    try {
+      const job = await AdminService.retryJob(req.params.id);
+      res.json(job);
+    } catch (error: unknown) {
+      const message = getErrorMessage(error);
+
+      if (message === 'Invalid job ID') {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', message } });
+      }
+
+      if (message === 'Job not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message } });
+      }
+
+      if (message === 'Only failed jobs can be retried' || message.startsWith('Job payload is missing')) {
+        return res.status(400).json({ error: { code: 'BAD_REQUEST', message } });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message } });
     }
   }
 }
