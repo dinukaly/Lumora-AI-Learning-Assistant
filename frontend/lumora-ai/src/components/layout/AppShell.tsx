@@ -7,7 +7,6 @@ import { RealtimeBridge } from "./RealtimeBridge";
 import { BrandLockup } from "./Brand";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ToastViewport } from "@/components/ui/toast-viewport";
 
 const AppShell = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -15,7 +14,6 @@ const AppShell = () => {
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
       <RealtimeBridge />
-      <ToastViewport />
       {/* Desktop Sidebar */}
       <Sidebar className="hidden lg:flex" />
 

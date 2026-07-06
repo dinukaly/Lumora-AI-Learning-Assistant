@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom'
 import { skipToken } from '@reduxjs/toolkit/query'
 import { AlertCircle, Brain, FileText, Loader2, RefreshCcw, Sparkles, Trophy } from 'lucide-react'
 import { enqueueToast } from '@/app/uiSlice'
+import { getApiErrorMessage } from '@/app/apiErrors'
 import { useAppDispatch } from '@/app/hooks'
 import { useListDocumentsQuery, type DocumentData } from '@/features/documents/documentsApi'
 import {
@@ -711,38 +712,6 @@ function formatRelativeDate(dateString: string) {
     month: 'short',
     day: 'numeric',
   })
-}
-
-function getApiErrorMessage(error: unknown) {
-  if (
-    error
-    && typeof error === 'object'
-    && 'data' in error
-    && error.data
-    && typeof error.data === 'object'
-    && 'error' in error.data
-  ) {
-    const nestedError = error.data.error
-    if (
-      nestedError
-      && typeof nestedError === 'object'
-      && 'message' in nestedError
-      && typeof nestedError.message === 'string'
-    ) {
-      return nestedError.message
-    }
-  }
-
-  if (
-    error
-    && typeof error === 'object'
-    && 'message' in error
-    && typeof error.message === 'string'
-  ) {
-    return error.message
-  }
-
-  return 'Please try again.'
 }
 
 export default QuizzesExperience
