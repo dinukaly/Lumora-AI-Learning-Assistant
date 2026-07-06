@@ -7,8 +7,9 @@ export interface IUser extends Document {
   passwordHash: string;
   role: 'USER' | 'ADMIN';
   avatar?: string;
-  preferences?: Record<string, any>;
+  preferences?: Record<string, unknown>;
   lastLoginAt?: Date;
+  disabledAt?: Date | null;
   createdAt: Date;
   updatedAt: Date;
   comparePassword(password: string): Promise<boolean>;
@@ -23,6 +24,7 @@ const UserSchema: Schema = new Schema(
     avatar: { type: String },
     preferences: { type: Object, default: {} },
     lastLoginAt: { type: Date },
+    disabledAt: { type: Date, default: null },
   },
   {
     timestamps: true,
