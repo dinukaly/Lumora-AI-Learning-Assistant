@@ -10,6 +10,7 @@ const jobTypeSchema = z.enum([
   'FLASHCARD_GENERATION',
   'QUIZ_GENERATION',
 ]);
+const usageGranularitySchema = z.enum(['day', 'hour']);
 
 export const listAdminUsersSchema = z.object({
   search: z.string().trim().min(1).optional(),
@@ -40,8 +41,15 @@ export const listAdminJobsSchema = z.object({
   limit: z.coerce.number().int().min(1).max(100).default(20),
 });
 
+export const getAdminUsageAnalyticsSchema = z.object({
+  from: z.string().datetime().optional(),
+  to: z.string().datetime().optional(),
+  granularity: usageGranularitySchema.default('day'),
+});
+
 export type ListAdminUsersDTO = z.infer<typeof listAdminUsersSchema>;
 export type UpdateAdminUserRoleDTO = z.infer<typeof updateAdminUserRoleSchema>;
 export type SetAdminUserDisabledDTO = z.infer<typeof setAdminUserDisabledSchema>;
 export type ListAdminDocumentsDTO = z.infer<typeof listAdminDocumentsSchema>;
 export type ListAdminJobsDTO = z.infer<typeof listAdminJobsSchema>;
+export type GetAdminUsageAnalyticsDTO = z.infer<typeof getAdminUsageAnalyticsSchema>;
