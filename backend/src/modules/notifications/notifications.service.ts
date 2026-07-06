@@ -1,6 +1,7 @@
 import mongoose from 'mongoose';
 import Notification, { type INotification, type NotificationType } from './notification.model.js';
 import { emitToUser, SOCKET_EVENTS } from '../../common/realtime/socket.js';
+import User from '../users/user.model.js';
 
 interface NotificationInput {
   userId: string;
@@ -113,6 +114,39 @@ export class NotificationsService {
       notification: this.serializeNotification(notification),
     });
     return notification;
+  }
+
+  static async broadcastAdminNotification(input: {
+    title: string;
+    body: string;
+    metadata?: Record<string, unknown>;
+  }) {
+    const users = await User.find({}).select('_id').lean();
+    if (users.length === 0) {
+      return {
+        createdCount: 0,
+      };
+    }
+
+    const notifications = await Notification.insertMany(
+      users.map((user) => ({
+        userId: user._id,
+        type: 'ADMIN_BROADCAST' as const,
+        title: input.title,
+        body: input.body,
+        metadata: input.metadata,
+      })),
+    );
+
+    for (const notification of notifications) {
+      emitToUser(notification.userId.toString(), SOCKET_EVENTS.notificationNew, {
+        notification: this.serializeNotification(notification),
+      });
+    }
+
+    return {
+      createdCount: notifications.length,
+    };
   }
 
   static async notifyDocumentReady(input: {
