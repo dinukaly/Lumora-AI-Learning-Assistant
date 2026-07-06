@@ -15,5 +15,6 @@ router.get('/jobs', AdminController.listJobs);
 router.post('/jobs/:id/retry', AdminController.retryJob);
 router.get('/stats', AdminController.getStats);
 router.get('/analytics/usage', AdminController.getUsageAnalytics);
+router.post('/notifications/broadcast', AdminController.broadcastNotification);
 
 export default router;

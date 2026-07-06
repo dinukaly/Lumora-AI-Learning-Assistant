@@ -5,7 +5,9 @@ import JobModel, { JobStatus, JobType } from '../jobs/job.model.js';
 import UsageEvent from '../analytics/usage-event.model.js';
 import { DocumentsService } from '../documents/documents.service.js';
 import { retryStoredJob } from '../../common/queue/index.js';
+import { NotificationsService } from '../notifications/notifications.service.js';
 import type {
+  BroadcastAdminNotificationDTO,
   GetAdminUsageAnalyticsDTO,
   ListAdminDocumentsDTO,
   ListAdminJobsDTO,
@@ -109,6 +111,11 @@ type AdminUsageAnalyticsResult = {
     tokens: number;
     cost: number;
   }>;
+};
+
+type AdminBroadcastResult = {
+  message: string;
+  createdCount: number;
 };
 
 export class AdminService {
@@ -385,6 +392,24 @@ export class AdminService {
         tokens: entry.tokens,
         cost: Number(entry.cost.toFixed(4)),
       })),
+    };
+  }
+
+  static async broadcastNotification(
+    input: BroadcastAdminNotificationDTO,
+    adminUserId: string,
+  ): Promise<AdminBroadcastResult> {
+    const result = await NotificationsService.broadcastAdminNotification({
+      title: input.title,
+      body: input.body,
+      metadata: {
+        createdBy: adminUserId,
+      },
+    });
+
+    return {
+      message: 'Broadcast notification sent successfully',
+      createdCount: result.createdCount,
     };
   }
 }
