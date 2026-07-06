@@ -1,5 +1,6 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/jwt.js';
+import User from '../../modules/users/user.model.js';
 
 export interface AuthRequest extends Request {
   user?: {
@@ -8,7 +9,7 @@ export interface AuthRequest extends Request {
   };
 }
 
-export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction) => {
+export const requireAuth = async (req: AuthRequest, res: Response, next: NextFunction) => {
   const authHeader = req.headers.authorization;
 
   if (!authHeader || !authHeader.startsWith('Bearer ')) {
@@ -24,9 +25,32 @@ export const requireAuth = (req: AuthRequest, res: Response, next: NextFunction)
 
   try {
     const payload = verifyAccessToken(token);
-    req.user = payload;
+
+    const user = await User.findById(payload.userId).select('role disabledAt');
+    if (!user) {
+      return res.status(401).json({
+        error: {
+          code: 'UNAUTHORIZED',
+          message: 'User not found',
+        },
+      });
+    }
+
+    if (user.disabledAt) {
+      return res.status(403).json({
+        error: {
+          code: 'FORBIDDEN',
+          message: 'Account is disabled',
+        },
+      });
+    }
+
+    req.user = {
+      userId: user._id.toString(),
+      role: user.role,
+    };
     next();
-  } catch (error) {
+  } catch {
     return res.status(401).json({
       error: {
         code: 'UNAUTHORIZED',
