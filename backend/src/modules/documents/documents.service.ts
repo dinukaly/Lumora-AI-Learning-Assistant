@@ -13,11 +13,12 @@ import Flashcard from '../learning/flashcard.model.js';
 import Quiz from '../learning/quiz.model.js';
 import QuizAttempt from '../learning/quiz-attempt.model.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import JobModel from '../jobs/job.model.js';
 
 const MAX_FILE_SIZE = 50 * 1024 * 1024;
 const ALLOWED_MIME_TYPES = ['application/pdf'];
 
-const storageProvider: StorageProvider = new S3CompatibleStorageProvider();
+const defaultStorageProvider: StorageProvider = new S3CompatibleStorageProvider();
 
 const storage = multer.memoryStorage();
 
@@ -69,6 +70,16 @@ export const upload = multer({
 });
 
 export class DocumentsService {
+  private static storageProvider: StorageProvider = defaultStorageProvider;
+
+  static setStorageProviderForTesting(provider: StorageProvider) {
+    this.storageProvider = provider;
+  }
+
+  static resetStorageProviderForTesting() {
+    this.storageProvider = defaultStorageProvider;
+  }
+
   static async createDocumentRecord(
     ownerId: string,
     title: string,
@@ -76,7 +87,7 @@ export class DocumentsService {
   ) {
     const uniqueName = `${crypto.randomUUID()}${path.extname(file.originalname)}`;
 
-    const storageUrl = await storageProvider.upload(uniqueName, file.buffer, file.mimetype);
+    const storageUrl = await this.storageProvider.upload(uniqueName, file.buffer, file.mimetype);
 
     const document = await Document.create({
       ownerId: new mongoose.Types.ObjectId(ownerId),
@@ -277,12 +288,42 @@ export class DocumentsService {
       throw new Error('Invalid document ID');
     }
 
-    const document = await Document.findOneAndDelete({
+    const document = await Document.findOne({
       _id: documentId,
       ownerId: new mongoose.Types.ObjectId(ownerId),
     });
 
     if (!document) {
+      throw new Error('Document not found');
+    }
+
+    await this.deleteDocumentArtifacts(document);
+
+    return document;
+  }
+
+  static async deleteDocumentAsAdmin(documentId: string) {
+    if (!mongoose.Types.ObjectId.isValid(documentId)) {
+      throw new Error('Invalid document ID');
+    }
+
+    const document = await Document.findById(documentId);
+    if (!document) {
+      throw new Error('Document not found');
+    }
+
+    await this.deleteDocumentArtifacts(document);
+
+    return document;
+  }
+
+  private static async deleteDocumentArtifacts(document: {
+    _id: mongoose.Types.ObjectId;
+    storageKey?: string;
+    storageUrl: string;
+  }) {
+    const deletedDocument = await Document.findByIdAndDelete(document._id);
+    if (!deletedDocument) {
       throw new Error('Document not found');
     }
 
@@ -293,7 +334,7 @@ export class DocumentsService {
     const quizIds = quizzes.map((quiz) => quiz._id);
 
     await Promise.all([
-      storageProvider.delete(key),
+      this.storageProvider.delete(key),
       DocumentChunk.deleteMany({ documentId: document._id }),
       Flashcard.deleteMany({ documentId: document._id }),
       Quiz.deleteMany({ documentId: document._id }),
@@ -304,15 +345,14 @@ export class DocumentsService {
       conversationIds.length > 0
         ? Message.deleteMany({ conversationId: { $in: conversationIds } })
         : Promise.resolve(),
+      JobModel.deleteMany({ documentId: document._id }),
     ]);
-
-    return document;
   }
 
   static async getDocumentFile(documentId: string, ownerId: string) {
     const document = await this.getDocumentById(documentId, ownerId);
     const key = resolveStorageKey(document);
-    const file = await storageProvider.download(key);
+    const file = await this.storageProvider.download(key);
 
     return {
       document,
