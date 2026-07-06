@@ -1,4 +1,4 @@
-import { Bell, ChevronRight, LogOut, Search, Settings, User } from 'lucide-react'
+import { Bell, ChevronRight, LogOut, Search, Settings, Shield, User } from 'lucide-react'
 import { useNavigate } from 'react-router-dom'
 import { useAppDispatch, useAppSelector } from '@/app/hooks'
 import { Button } from '@/components/ui/button'
@@ -201,6 +201,12 @@ export const TopBar = () => {
               <User className="mr-2 h-4 w-4" />
               <span>Profile</span>
             </DropdownMenuItem>
+            {user?.role === 'ADMIN' && (
+              <DropdownMenuItem onClick={() => navigate('/admin')}>
+                <Shield className="mr-2 h-4 w-4" />
+                <span>Admin Console</span>
+              </DropdownMenuItem>
+            )}
             <DropdownMenuItem>
               <Settings className="mr-2 h-4 w-4" />
               <span>Settings</span>
