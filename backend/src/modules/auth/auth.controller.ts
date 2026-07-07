@@ -4,6 +4,7 @@ import { loginSchema, registerSchema, verifyEmailQuerySchema } from './auth.dto.
 import { config } from '../../config/index.js';
 import { AuthRequest } from '../../common/middleware/auth.js';
 import { EmailVerificationError, EmailVerificationService } from './email-verification.service.js';
+import { LoginProtectionError } from './login-protection.service.js';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -65,6 +66,9 @@ export class AuthController {
     } catch (error: unknown) {
       if (isZodError(error)) {
         return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
+      }
+      if (error instanceof LoginProtectionError) {
+        return sendRateLimitedResponse(res, error);
       }
       if (getErrorMessage(error) === 'Account is disabled') {
         return res.status(403).json({ error: { code: 'FORBIDDEN', message: getErrorMessage(error) } });
@@ -164,4 +168,17 @@ function getErrorMessage(error: unknown) {
   }
 
   return 'Unexpected error';
+}
+
+function sendRateLimitedResponse(res: Response, error: LoginProtectionError) {
+  if (error.retryAfterSeconds) {
+    res.setHeader('Retry-After', String(error.retryAfterSeconds));
+  }
+
+  return res.status(429).json({
+    error: {
+      code: error.code,
+      message: error.message,
+    },
+  });
 }

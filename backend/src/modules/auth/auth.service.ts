@@ -1,6 +1,7 @@
 import User from '../users/user.model.js';
 import { RegisterDTO, LoginDTO } from './auth.dto.js';
 import AuthIdentity from './auth-identity.model.js';
+import { LoginProtectionService } from './login-protection.service.js';
 import {
   RefreshSessionService,
   type RefreshSessionContext,
@@ -26,14 +27,15 @@ function mapAuthUser(user: {
 
 export class AuthService {
   static async register(data: RegisterDTO, context?: RefreshSessionContext) {
-    const existingUser = await User.findOne({ email: data.email });
+    const normalizedEmail = normalizeEmail(data.email);
+    const existingUser = await User.findOne({ email: normalizedEmail });
     if (existingUser) {
       throw new Error('User already exists');
     }
 
     const user = new User({
       name: data.name,
-      email: data.email,
+      email: normalizedEmail,
       passwordHash: data.password,
       authProviderSummary: ['local'],
     });
@@ -63,8 +65,21 @@ export class AuthService {
   }
 
   static async login(data: LoginDTO, context?: RefreshSessionContext) {
-    const user = await User.findOne({ email: data.email });
+    const normalizedEmail = normalizeEmail(data.email);
+    const ipAddress = context?.ipAddress ?? undefined;
+    const user = await User.findOne({ email: normalizedEmail });
+    await LoginProtectionService.assertLoginAllowed({
+      email: normalizedEmail,
+      user,
+      ipAddress,
+    });
+
     if (!user) {
+      await LoginProtectionService.recordFailedAttempt({
+        email: normalizedEmail,
+        user: null,
+        ipAddress,
+      });
       throw new Error('Invalid credentials');
     }
 
@@ -74,9 +89,15 @@ export class AuthService {
 
     const isMatch = await user.comparePassword(data.password);
     if (!isMatch) {
+      await LoginProtectionService.recordFailedAttempt({
+        email: normalizedEmail,
+        user,
+        ipAddress,
+      });
       throw new Error('Invalid credentials');
     }
 
+    await LoginProtectionService.resetSuccessfulLogin(user);
     user.lastLoginAt = new Date();
     await user.save();
 
@@ -151,4 +172,8 @@ export class AuthService {
 
     return { message: 'Logged out successfully' };
   }
+}
+
+function normalizeEmail(email: string) {
+  return email.trim().toLowerCase();
 }
