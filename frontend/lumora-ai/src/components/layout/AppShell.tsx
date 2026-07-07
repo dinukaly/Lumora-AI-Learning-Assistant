@@ -29,12 +29,12 @@ const AppShell = () => {
   }, [dispatch, profile]);
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="fixed inset-0 flex min-h-0 overflow-hidden bg-gray-50">
       <RealtimeBridge />
       {/* Desktop Sidebar */}
       <Sidebar className="hidden lg:flex" />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* Mobile Top Bar with Hamburger */}
         <div className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:hidden">
           <BrandLockup />
@@ -55,7 +55,7 @@ const AppShell = () => {
         <TopBar />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8">
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8">
           <div className="mx-auto max-w-7xl">
             <Outlet />
           </div>
