@@ -35,15 +35,18 @@ const LoginPage = () => {
     try {
       const result = await login({ email, password }).unwrap()
       dispatch(setCredentials(result))
+      const isVerified = Boolean(result.user.emailVerifiedAt)
       dispatch(
         enqueueToast({
           id: crypto.randomUUID(),
-          title: 'Signed in',
-          description: `Welcome back, ${result.user.name}.`,
+          title: isVerified ? 'Signed in' : 'Verification still required',
+          description: isVerified
+            ? `Welcome back, ${result.user.name}.`
+            : 'You can access your account, but protected learning features stay locked until your email is verified.',
           tone: 'success',
         }),
       )
-      navigate('/dashboard')
+      navigate(isVerified ? '/dashboard' : '/verify-email/pending')
     } catch (error) {
       const nextErrorState = getApiFormErrorState(error)
       setFormError(nextErrorState.formError)

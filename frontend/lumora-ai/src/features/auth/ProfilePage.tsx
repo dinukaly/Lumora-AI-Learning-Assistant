@@ -1,12 +1,13 @@
 import { useEffect, useState } from 'react'
-import { AlertCircle, ImageUp, KeyRound, Mail, Save, ShieldCheck, Upload, X } from 'lucide-react'
+import { AlertCircle, ImageUp, KeyRound, Mail, RefreshCw, Save, ShieldCheck, Upload, X } from 'lucide-react'
 import { useAppDispatch } from '@/app/hooks'
-import { getApiFormErrorState } from '@/app/apiErrors'
+import { getApiErrorMessage, getApiFormErrorState } from '@/app/apiErrors'
 import { enqueueToast } from '@/app/uiSlice'
 import { updateUser } from './authSlice'
 import {
   useChangePasswordMutation,
   useGetProfileQuery,
+  useResendVerificationEmailMutation,
   useUpdateProfileMutation,
   useUploadAvatarMutation,
   type User,
@@ -72,6 +73,8 @@ const ProfilePage = () => {
   const [updateProfile, { isLoading: isSavingProfile }] = useUpdateProfileMutation()
   const [uploadAvatar, { isLoading: isUploadingAvatar }] = useUploadAvatarMutation()
   const [changePassword, { isLoading: isChangingPassword }] = useChangePasswordMutation()
+  const [resendVerificationEmail, { isLoading: isResendingVerification }] =
+    useResendVerificationEmailMutation()
 
   const [name, setName] = useState('')
   const [profileFormError, setProfileFormError] = useState<string | null>(null)
@@ -90,7 +93,8 @@ const ProfilePage = () => {
 
     const defaults = getSafeProfileDefaults(profile)
     setName(defaults.name)
-  }, [profile])
+    dispatch(updateUser(profile))
+  }, [dispatch, profile])
 
   useEffect(() => {
     if (!avatarFile) {
@@ -197,6 +201,29 @@ const ProfilePage = () => {
       const nextErrorState = getApiFormErrorState(error)
       setPasswordFormError(nextErrorState.formError)
       setPasswordFieldErrors(nextErrorState.fieldErrors)
+    }
+  }
+
+  const handleResendVerification = async () => {
+    try {
+      const result = await resendVerificationEmail().unwrap()
+      dispatch(
+        enqueueToast({
+          id: crypto.randomUUID(),
+          title: 'Verification email sent',
+          description: result.message,
+          tone: 'success',
+        }),
+      )
+    } catch (error) {
+      dispatch(
+        enqueueToast({
+          id: crypto.randomUUID(),
+          title: 'Could not resend email',
+          description: getApiErrorMessage(error),
+          tone: 'error',
+        }),
+      )
     }
   }
 
@@ -310,6 +337,26 @@ const ProfilePage = () => {
         </Card>
 
         <div className="space-y-6">
+          {!profile.emailVerifiedAt && (
+            <Card className="border-amber-200 bg-amber-50/80">
+              <CardHeader>
+                <CardTitle>Verification required</CardTitle>
+                <CardDescription className="text-amber-900">
+                  You can use your account settings now, but protected learning features stay locked until your email is verified.
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
+                <div className="text-sm text-amber-900">
+                  We&apos;ll send the verification link to <span className="font-semibold">{profile.email}</span>.
+                </div>
+                <Button onClick={() => void handleResendVerification()} disabled={isResendingVerification}>
+                  <RefreshCw className={`h-4 w-4 ${isResendingVerification ? 'animate-spin' : ''}`} />
+                  {isResendingVerification ? 'Sending email...' : 'Resend verification email'}
+                </Button>
+              </CardContent>
+            </Card>
+          )}
+
           <Card>
             <CardHeader>
               <CardTitle>Edit profile</CardTitle>

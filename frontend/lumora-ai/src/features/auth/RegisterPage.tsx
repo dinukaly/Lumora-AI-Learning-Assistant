@@ -40,11 +40,14 @@ const RegisterPage = () => {
         enqueueToast({
           id: crypto.randomUUID(),
           title: 'Account created',
-          description: 'You can start using Lumora now.',
+          description:
+            result.verificationEmailSent === false
+              ? 'Your account is ready. Use the verification screen to resend the email if you did not receive it.'
+              : 'Check your inbox to verify your email and unlock learning features.',
           tone: 'success',
         }),
       )
-      navigate('/dashboard')
+      navigate('/verify-email/pending')
     } catch (error) {
       const nextErrorState = getApiFormErrorState(error)
       setFormError(nextErrorState.formError)
