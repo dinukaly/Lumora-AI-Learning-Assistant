@@ -93,6 +93,10 @@ function getFallbackMessage(code: string | undefined, message: string | undefine
     return 'Verify your email to unlock this feature.'
   }
 
+  if (code === 'RATE_LIMITED') {
+    return 'Too many attempts. Please wait and try again.'
+  }
+
   if (message === 'User already exists') {
     return 'An account with this email already exists.'
   }

@@ -10,7 +10,7 @@ export const authRateLimit = rateLimit({
     res.status(429).json({
       error: {
         code: 'RATE_LIMITED',
-        message: 'Too many authentication requests. Please try again later.',
+        message: 'Too many attempts. Please wait and try again.',
       },
     });
   },
