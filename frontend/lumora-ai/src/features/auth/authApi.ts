@@ -13,11 +13,12 @@ export interface User {
   createdAt?: string
   updatedAt?: string
   emailVerifiedAt?: string | null
-  authProviders?: string[]
+  authProviders?: Array<'local' | 'google' | 'apple'>
   hasPassword?: boolean
   lockedUntil?: string | null
 }
 
+type AuthProvider = NonNullable<User['authProviders']>[number]
 type RawUser = User & { _id?: string }
 
 interface AuthResponse {
@@ -64,9 +65,25 @@ interface AvatarUploadResponse {
 }
 
 function normalizeUser(user: RawUser): User {
+  const authProviders: AuthProvider[] =
+    Array.isArray(user.authProviders) && user.authProviders.length > 0
+      ? Array.from(new Set<AuthProvider>(user.authProviders))
+      : user.hasPassword === false
+        ? []
+        : ['local']
+
   return {
     ...user,
     id: user.id || user._id || '',
+    authProviders,
+    hasPassword: typeof user.hasPassword === 'boolean' ? user.hasPassword : authProviders.includes('local'),
+  }
+}
+
+function normalizeAuthResponse(response: AuthResponse): AuthResponse {
+  return {
+    ...response,
+    user: normalizeUser(response.user as RawUser),
   }
 }
 
@@ -78,6 +95,7 @@ export const authApi = apiSlice.injectEndpoints({
         method: 'POST',
         body: credentials,
       }),
+      transformResponse: (response: AuthResponse) => normalizeAuthResponse(response),
     }),
     register: builder.mutation<AuthResponse, RegisterRequest>({
       query: (data) => ({
@@ -85,6 +103,7 @@ export const authApi = apiSlice.injectEndpoints({
         method: 'POST',
         body: data,
       }),
+      transformResponse: (response: AuthResponse) => normalizeAuthResponse(response),
     }),
     refreshToken: builder.mutation<RefreshResponse, void>({
       query: () => ({
@@ -159,6 +178,7 @@ export const {
   useResendVerificationEmailMutation,
   useVerifyEmailMutation,
   useGetProfileQuery,
+  useLazyGetProfileQuery,
   useUpdateProfileMutation,
   useUploadAvatarMutation,
   useChangePasswordMutation,
