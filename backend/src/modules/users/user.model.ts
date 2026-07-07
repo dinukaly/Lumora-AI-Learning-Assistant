@@ -7,6 +7,7 @@ export interface IUser extends Document {
   passwordHash: string;
   role: 'USER' | 'ADMIN';
   avatar?: string;
+  avatarStorageKey?: string;
   preferences?: Record<string, unknown>;
   lastLoginAt?: Date;
   disabledAt?: Date | null;
@@ -22,6 +23,7 @@ const UserSchema: Schema = new Schema(
     passwordHash: { type: String, required: true },
     role: { type: String, enum: ['USER', 'ADMIN'], default: 'USER', required: true },
     avatar: { type: String },
+    avatarStorageKey: { type: String },
     preferences: { type: Object, default: {} },
     lastLoginAt: { type: Date },
     disabledAt: { type: Date, default: null },
