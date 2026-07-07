@@ -89,6 +89,10 @@ function getFallbackMessage(code: string | undefined, message: string | undefine
     return 'This account has been disabled. Contact support if this seems incorrect.'
   }
 
+  if (code === 'EMAIL_UNVERIFIED') {
+    return 'Verify your email to unlock this feature.'
+  }
+
   if (message === 'User already exists') {
     return 'An account with this email already exists.'
   }
