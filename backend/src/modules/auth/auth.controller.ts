@@ -1,7 +1,9 @@
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
-import { registerSchema, loginSchema } from './auth.dto.js';
+import { loginSchema, registerSchema, verifyEmailQuerySchema } from './auth.dto.js';
 import { config } from '../../config/index.js';
+import { AuthRequest } from '../../common/middleware/auth.js';
+import { EmailVerificationError, EmailVerificationService } from './email-verification.service.js';
 
 const COOKIE_OPTIONS = {
   httpOnly: true,
@@ -24,14 +26,29 @@ export class AuthController {
         ipAddress: req.ip,
         userAgent: req.get('user-agent'),
       });
+
+      let verificationEmailSent = false;
+      try {
+        const verificationResult = await EmailVerificationService.sendVerificationEmailForUser(
+          result.user.id,
+        );
+        verificationEmailSent = verificationResult.sent;
+      } catch (verificationError) {
+        console.error('Failed to send verification email after signup', verificationError);
+      }
       
       res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
-      res.status(201).json(result);
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
+      res.status(201).json({
+        ...result,
+        emailVerificationRequired: true,
+        verificationEmailSent,
+        message: 'Account created. Verify your email to unlock protected features.',
+      });
+    } catch (error: unknown) {
+      if (isZodError(error)) {
         return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
       }
-      res.status(400).json({ error: { code: 'BAD_REQUEST', message: error.message } });
+      res.status(400).json({ error: { code: 'BAD_REQUEST', message: getErrorMessage(error) } });
     }
   }
 
@@ -45,14 +62,14 @@ export class AuthController {
       
       res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
       res.status(200).json(result);
-    } catch (error: any) {
-      if (error.name === 'ZodError') {
+    } catch (error: unknown) {
+      if (isZodError(error)) {
         return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
       }
-      if (error.message === 'Account is disabled') {
-        return res.status(403).json({ error: { code: 'FORBIDDEN', message: error.message } });
+      if (getErrorMessage(error) === 'Account is disabled') {
+        return res.status(403).json({ error: { code: 'FORBIDDEN', message: getErrorMessage(error) } });
       }
-      res.status(401).json({ error: { code: 'UNAUTHORIZED', message: error.message } });
+      res.status(401).json({ error: { code: 'UNAUTHORIZED', message: getErrorMessage(error) } });
     }
   }
 
@@ -70,11 +87,11 @@ export class AuthController {
       
       res.cookie('refreshToken', newRefreshToken, COOKIE_OPTIONS);
       res.status(200).json(result);
-    } catch (error: any) {
-      if (error.message === 'Account is disabled') {
-        return res.status(403).json({ error: { code: 'FORBIDDEN', message: error.message } });
+    } catch (error: unknown) {
+      if (getErrorMessage(error) === 'Account is disabled') {
+        return res.status(403).json({ error: { code: 'FORBIDDEN', message: getErrorMessage(error) } });
       }
-      res.status(401).json({ error: { code: 'UNAUTHORIZED', message: error.message } });
+      res.status(401).json({ error: { code: 'UNAUTHORIZED', message: getErrorMessage(error) } });
     }
   }
 
@@ -83,8 +100,68 @@ export class AuthController {
       await AuthService.logout(req.cookies.refreshToken);
       res.clearCookie('refreshToken', CLEAR_COOKIE_OPTIONS);
       res.status(200).json({ message: 'Logged out successfully' });
-    } catch (error: any) {
-      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
+    } catch (error: unknown) {
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
     }
   }
+
+  static async resendVerificationEmail(req: AuthRequest, res: Response) {
+    try {
+      await EmailVerificationService.sendVerificationEmailForUser(req.user!.userId);
+      res.status(200).json({
+        message: 'If verification is still required, a new email has been sent.',
+      });
+    } catch (error: unknown) {
+      if (error instanceof EmailVerificationError && error.code === 'NOT_FOUND') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
+    }
+  }
+
+  static async verifyEmail(req: Request, res: Response) {
+    try {
+      const { token } = verifyEmailQuerySchema.parse(req.query);
+      const result = await EmailVerificationService.verifyEmailToken(token);
+      res.status(200).json(result);
+    } catch (error: unknown) {
+      if (isZodError(error)) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            details: error.errors,
+          },
+        });
+      }
+
+      if (error instanceof EmailVerificationError) {
+        const errorCode = error.code === 'TOKEN_EXPIRED' ? 'TOKEN_EXPIRED' : error.code;
+        return res.status(error.code === 'NOT_FOUND' ? 404 : 400).json({
+          error: {
+            code: errorCode,
+            message: error.message,
+          },
+        });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
+    }
+  }
+}
+
+function isZodError(error: unknown): error is { name: 'ZodError'; errors: unknown[] } {
+  return typeof error === 'object'
+    && error !== null
+    && 'name' in error
+    && error.name === 'ZodError'
+    && 'errors' in error;
+}
+
+function getErrorMessage(error: unknown) {
+  if (error instanceof Error) {
+    return error.message;
+  }
+
+  return 'Unexpected error';
 }
