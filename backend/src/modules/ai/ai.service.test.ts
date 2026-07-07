@@ -50,5 +50,39 @@ test('buildPrompt includes context, chunks, and user request', () => {
   assert.match(prompt, /Remind me what proteins do/);
   assert.match(prompt, /Ribosomes build proteins for the cell/);
   assert.match(prompt, /What does the document say about ribosomes/);
-  assert.match(prompt, /page 4/);
+  assert.match(prompt, /Page 4/);
+});
+
+test('buildPrompt relaxes chat rules for assistant-meta messages', () => {
+  const orchestrator = new AIService();
+  const prompt = orchestrator.buildPrompt('CHAT', {
+    conversationId: 'ephemeral:doc123:test',
+    documentId: 'doc123',
+    documentTitle: 'Biology Notes',
+    queryScope: 'ASSISTANT_META',
+    recentMessages: [],
+    userMessage: 'hello are you a real AI?',
+    retrievedChunks: [],
+  });
+
+  assert.match(prompt, /ASSISTANT_META/);
+  assert.match(prompt, /Reply naturally and briefly in 1-2 sentences/);
+  assert.match(prompt, /Do not pretend the answer comes from the document/);
+});
+
+test('buildPrompt redirects unsupported general chat without citations', () => {
+  const orchestrator = new AIService();
+  const prompt = orchestrator.buildPrompt('CHAT', {
+    conversationId: 'ephemeral:doc123:test',
+    documentId: 'doc123',
+    documentTitle: 'Biology Notes',
+    queryScope: 'GENERAL',
+    recentMessages: [],
+    userMessage: 'What is the weather today?',
+    retrievedChunks: [],
+  });
+
+  assert.match(prompt, /GENERAL/);
+  assert.match(prompt, /No relevant document support was found/);
+  assert.match(prompt, /Do not cite document pages when no relevant chunks were retrieved/);
 });

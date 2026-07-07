@@ -132,8 +132,8 @@ async function main() {
       method: 'POST',
       headers: { Cookie: loginCookie },
     });
-    assert.equal(refreshResponse.status, 200);
     const refreshJson = await refreshResponse.json();
+    assert.equal(refreshResponse.status, 200, JSON.stringify(refreshJson));
     assert.ok(refreshJson.accessToken);
 
     const logoutResponse = await fetch(`${baseUrl}/api/v1/auth/logout`, {

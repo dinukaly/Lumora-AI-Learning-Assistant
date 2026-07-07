@@ -22,6 +22,7 @@ async function main() {
     email: `verify-t44-${Date.now()}@example.com`,
     passwordHash: 'password123',
     role: 'USER',
+    emailVerifiedAt: new Date(),
   });
 
   const document = await Document.create({

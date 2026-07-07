@@ -4,6 +4,7 @@ import { connectDB, disconnectDB } from '../src/config/db.js';
 import { generateAccessToken } from '../src/common/utils/jwt.js';
 import User from '../src/modules/users/user.model.js';
 import AuthIdentity from '../src/modules/auth/auth-identity.model.js';
+import EmailVerificationToken from '../src/modules/auth/email-verification-token.model.js';
 import RefreshSession from '../src/modules/auth/refresh-session.model.js';
 
 async function main() {
@@ -52,8 +53,8 @@ async function main() {
       method: 'POST',
       headers: { Cookie: firstCookie },
     });
-    assert.equal(rotatedResponse.status, 200);
     const rotatedJson = await rotatedResponse.json();
+    assert.equal(rotatedResponse.status, 200, JSON.stringify(rotatedJson));
     assert.ok(rotatedJson.accessToken);
     const rotatedCookie = getCookieHeader(rotatedResponse.headers.get('set-cookie'));
     assert.ok(rotatedCookie);
@@ -170,6 +171,7 @@ async function main() {
   } finally {
     await Promise.allSettled([
       AuthIdentity.deleteMany({ emailAtProvider: { $in: [email, adminEmail] } }),
+      EmailVerificationToken.deleteMany({ email: { $in: [email, adminEmail] } }),
       RefreshSession.deleteMany({ userId: { $in: [userId, adminUserId].filter(Boolean) } }),
       User.deleteMany({ email: { $in: [email, adminEmail] } }),
     ]);
