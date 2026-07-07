@@ -65,17 +65,46 @@ export const config = {
     },
   },
 
-  // Storage — S3-compatible (MinIO local → Cloudflare R2 prod)
+  // Storage — S3-compatible Cloudflare R2
   storage: {
-    endpoint: process.env.S3_ENDPOINT || 'http://localhost:9000',
-    region: process.env.S3_REGION || 'us-east-1',
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || 'minioadmin',
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || 'minioadmin',
+    endpoint: process.env.S3_ENDPOINT || '',
+    region: process.env.S3_REGION || 'auto',
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
     bucketName: process.env.S3_BUCKET_NAME || 'lumora-documents',
-    useSsl: process.env.S3_USE_SSL === 'true',
+    useSsl: parseBoolean(process.env.S3_USE_SSL, true),
     publicBaseUrl: process.env.S3_PUBLIC_BASE_URL || '',
     forcePathStyle: parseBoolean(process.env.S3_FORCE_PATH_STYLE, true),
-    autoCreateBucket: parseBoolean(process.env.S3_AUTO_CREATE_BUCKET, environment !== 'production'),
+    autoCreateBucket: parseBoolean(process.env.S3_AUTO_CREATE_BUCKET, false),
+  },
+
+  avatar: {
+    maxUploadBytes: parseInt(process.env.AVATAR_MAX_UPLOAD_BYTES || '2097152', 10),
+    outputSizePx: parseInt(process.env.AVATAR_OUTPUT_SIZE_PX || '256', 10),
+    publicBaseUrl: process.env.AVATAR_PUBLIC_BASE_URL || '',
+    storage: {
+      endpoint: process.env.AVATAR_S3_ENDPOINT || process.env.S3_ENDPOINT || '',
+      region: process.env.AVATAR_S3_REGION || process.env.S3_REGION || 'auto',
+      accessKeyId: process.env.AVATAR_S3_ACCESS_KEY_ID || process.env.S3_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.AVATAR_S3_SECRET_ACCESS_KEY || process.env.S3_SECRET_ACCESS_KEY || '',
+      bucketName: process.env.AVATAR_S3_BUCKET_NAME || process.env.S3_BUCKET_NAME || 'lumora-avatars',
+      publicBaseUrl: process.env.AVATAR_PUBLIC_BASE_URL || '',
+      forcePathStyle: parseBoolean(
+        process.env.AVATAR_S3_FORCE_PATH_STYLE || process.env.S3_FORCE_PATH_STYLE,
+        true,
+      ),
+      autoCreateBucket: parseBoolean(process.env.AVATAR_S3_AUTO_CREATE_BUCKET, false),
+      missingConfigLabels: {
+        endpoint: process.env.AVATAR_S3_ENDPOINT ? 'AVATAR_S3_ENDPOINT' : 'S3_ENDPOINT',
+        accessKeyId: process.env.AVATAR_S3_ACCESS_KEY_ID
+          ? 'AVATAR_S3_ACCESS_KEY_ID'
+          : 'S3_ACCESS_KEY_ID',
+        secretAccessKey: process.env.AVATAR_S3_SECRET_ACCESS_KEY
+          ? 'AVATAR_S3_SECRET_ACCESS_KEY'
+          : 'S3_SECRET_ACCESS_KEY',
+        bucketName: process.env.AVATAR_S3_BUCKET_NAME ? 'AVATAR_S3_BUCKET_NAME' : 'S3_BUCKET_NAME',
+      },
+    },
   },
 
   // Redis — BullMQ job queue
