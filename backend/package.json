@@ -24,6 +24,7 @@
     "verify:t43": "tsx scripts/verify-conversations.ts",
     "verify:t44": "tsx scripts/verify-ai-chat.ts",
     "verify:t85": "tsx scripts/verify-email-verification.ts",
+    "verify:t86": "tsx scripts/verify-email-verification-gate.ts",
     "verify:t84": "tsx scripts/verify-refresh-sessions.ts",
     "verify:t83": "tsx scripts/verify-auth-data-model.ts",
     "verify:t51": "tsx scripts/verify-flashcards.ts",
