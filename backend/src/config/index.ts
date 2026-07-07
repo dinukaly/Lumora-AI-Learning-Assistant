@@ -34,6 +34,39 @@ export const config = {
     refreshExpiration: process.env.JWT_REFRESH_EXPIRATION || '7d',
   },
 
+  oauth: {
+    google: {
+      enabled: parseBoolean(
+        process.env.GOOGLE_OAUTH_ENABLED,
+        Boolean(
+          process.env.GOOGLE_OAUTH_CLIENT_ID
+          && process.env.GOOGLE_OAUTH_CLIENT_SECRET
+          && process.env.GOOGLE_OAUTH_REDIRECT_URI,
+        ),
+      ),
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
+      redirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI || '',
+      frontendCallbackUrl:
+        process.env.GOOGLE_OAUTH_FRONTEND_CALLBACK_URL
+        || `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')}/auth/google/callback`,
+      authorizationUrl:
+        process.env.GOOGLE_OAUTH_AUTHORIZATION_URL
+        || 'https://accounts.google.com/o/oauth2/v2/auth',
+      tokenUrl:
+        process.env.GOOGLE_OAUTH_TOKEN_URL
+        || 'https://oauth2.googleapis.com/token',
+      userInfoUrl:
+        process.env.GOOGLE_OAUTH_USERINFO_URL
+        || 'https://openidconnect.googleapis.com/v1/userinfo',
+      discoveryUrl:
+        process.env.GOOGLE_OAUTH_DISCOVERY_URL
+        || 'https://accounts.google.com/.well-known/openid-configuration',
+      stateTtlMs: parseInt(process.env.GOOGLE_OAUTH_STATE_TTL_MS || '600000', 10),
+      scopes: ['openid', 'email', 'profile'],
+    },
+  },
+
   email: {
     provider:
       process.env.EMAIL_PROVIDER
