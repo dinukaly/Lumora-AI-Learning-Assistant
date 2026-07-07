@@ -1,15 +1,32 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Menu } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
+import { useGetProfileQuery } from "@/features/auth/authApi";
+import { updateUser } from "@/features/auth/authSlice";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { RealtimeBridge } from "./RealtimeBridge";
 import { BrandLockup } from "./Brand";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
+import { useEffect } from "react";
 
 const AppShell = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
+  const { data: profile } = useGetProfileQuery(undefined, {
+    skip: !user,
+  });
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    dispatch(updateUser(profile));
+  }, [dispatch, profile]);
 
   return (
     <div className="flex h-screen bg-gray-50 overflow-hidden">
