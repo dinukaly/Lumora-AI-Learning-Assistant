@@ -602,13 +602,23 @@ function mapAuthUser(user: {
   name: string;
   email: string;
   role: 'USER' | 'ADMIN';
+  passwordHash?: string;
+  authProviderSummary?: Array<'local' | 'google' | 'apple'>;
   emailVerifiedAt?: Date | null;
 }) {
+  const authProviders = Array.isArray(user.authProviderSummary) && user.authProviderSummary.length > 0
+    ? [...new Set(user.authProviderSummary)]
+    : user.passwordHash
+      ? ['local']
+      : [];
+
   return {
     id: user._id.toString(),
     name: user.name,
     email: user.email,
     role: user.role,
     emailVerifiedAt: user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : null,
+    authProviders,
+    hasPassword: Boolean(user.passwordHash),
   };
 }

@@ -50,11 +50,11 @@ export class UsersService {
   }
 
   static async getProfile(userId: string) {
-    const user = await User.findById(userId).select('-passwordHash');
+    const user = await User.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
-    return user;
+    return serializeUserProfile(user);
   }
 
   static async updateProfile(userId: string, data: UpdateProfileDTO) {
@@ -62,12 +62,12 @@ export class UsersService {
       userId,
       { $set: data },
       { new: true, runValidators: true },
-    ).select('-passwordHash');
+    );
 
     if (!user) {
       throw new Error('User not found');
     }
-    return user;
+    return serializeUserProfile(user);
   }
 
   static async updateAvatar(userId: string, file: Express.Multer.File) {
@@ -96,13 +96,13 @@ export class UsersService {
       });
     }
 
-    const user = await User.findById(userId).select('-passwordHash');
+    const user = await User.findById(userId);
     if (!user) {
       throw new Error('User not found');
     }
 
     return {
-      user,
+      user: serializeUserProfile(user),
       avatar: { url: avatarUrl },
       message: 'Avatar updated successfully',
     };
@@ -162,4 +162,20 @@ function formatBytes(bytes: number) {
   }
 
   return `${Math.round((bytes / (1024 * 1024)) * 10) / 10}MB`;
+}
+
+function serializeUserProfile(user: InstanceType<typeof User>) {
+  const userObject = user.toObject();
+  const { passwordHash, ...safeUser } = userObject as typeof userObject & { passwordHash?: string };
+  const authProviders = Array.isArray(user.authProviderSummary) && user.authProviderSummary.length > 0
+    ? [...new Set(user.authProviderSummary)]
+    : passwordHash
+      ? ['local']
+      : [];
+
+  return {
+    ...safeUser,
+    authProviders,
+    hasPassword: Boolean(passwordHash),
+  };
 }
