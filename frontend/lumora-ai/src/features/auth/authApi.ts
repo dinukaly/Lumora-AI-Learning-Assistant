@@ -23,6 +23,9 @@ type RawUser = User & { _id?: string }
 interface AuthResponse {
   user: User
   accessToken: string
+  emailVerificationRequired?: boolean
+  verificationEmailSent?: boolean
+  message?: string
 }
 
 interface LoginRequest {
@@ -38,6 +41,10 @@ interface RegisterRequest {
 
 interface RefreshResponse {
   accessToken: string
+}
+
+interface VerifyEmailResponse {
+  message: string
 }
 
 interface UpdateProfileRequest {
@@ -91,6 +98,18 @@ export const authApi = apiSlice.injectEndpoints({
         method: 'POST',
       }),
     }),
+    resendVerificationEmail: builder.mutation<{ message: string }, void>({
+      query: () => ({
+        url: '/auth/verification/resend',
+        method: 'POST',
+      }),
+    }),
+    verifyEmail: builder.mutation<VerifyEmailResponse, string>({
+      query: (token) => ({
+        url: `/auth/verification/verify?token=${encodeURIComponent(token)}`,
+        method: 'GET',
+      }),
+    }),
     getProfile: builder.query<User, void>({
       query: () => '/users/me',
       transformResponse: (response: RawUser) => normalizeUser(response),
@@ -137,6 +156,8 @@ export const {
   useRegisterMutation,
   useRefreshTokenMutation,
   useLogoutMutation,
+  useResendVerificationEmailMutation,
+  useVerifyEmailMutation,
   useGetProfileQuery,
   useUpdateProfileMutation,
   useUploadAvatarMutation,
