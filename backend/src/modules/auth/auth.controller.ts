@@ -4,6 +4,7 @@ import { loginSchema, registerSchema, verifyEmailQuerySchema } from './auth.dto.
 import { config } from '../../config/index.js';
 import { AuthRequest } from '../../common/middleware/auth.js';
 import { EmailVerificationError, EmailVerificationService } from './email-verification.service.js';
+import { GoogleOAuthError, GoogleOAuthService } from './google-oauth.service.js';
 import { LoginProtectionError } from './login-protection.service.js';
 
 const COOKIE_OPTIONS = {
@@ -20,6 +21,20 @@ const CLEAR_COOKIE_OPTIONS = {
 };
 
 export class AuthController {
+  static async startGoogleOAuth(_req: Request, res: Response) {
+    try {
+      const { authorizationUrl, cookieValue } = GoogleOAuthService.createAuthorizationUrl();
+      GoogleOAuthService.applyOauthCookie(res, cookieValue);
+      res.redirect(302, authorizationUrl);
+    } catch (error: unknown) {
+      if (error instanceof GoogleOAuthError) {
+        return sendGoogleOauthErrorResponse(reqAcceptsJson(_req), res, error);
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
+    }
+  }
+
   static async register(req: Request, res: Response) {
     try {
       const validatedData = registerSchema.parse(req.body);
@@ -152,6 +167,69 @@ export class AuthController {
       res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
     }
   }
+
+  static async googleOAuthCallback(req: Request, res: Response) {
+    const wantsJson = reqAcceptsJson(req);
+    const providerError = typeof req.query.error === 'string' ? req.query.error : '';
+    const providerErrorDescription =
+      typeof req.query.error_description === 'string' ? req.query.error_description : '';
+
+    if (providerError) {
+      GoogleOAuthService.clearOauthCookie(res);
+      return sendGoogleOauthErrorResponse(
+        wantsJson,
+        res,
+        new GoogleOAuthError(
+          'OAUTH_PROVIDER_ERROR',
+          'Google sign-in could not be completed. Please try again.',
+          400,
+        ),
+        providerError,
+        providerErrorDescription,
+      );
+    }
+
+    try {
+      const code = typeof req.query.code === 'string' ? req.query.code : '';
+      const state = typeof req.query.state === 'string' ? req.query.state : '';
+      if (!code || !state) {
+        throw new GoogleOAuthError(
+          'OAUTH_INVALID_STATE',
+          'Google sign-in could not be completed safely. Please try again.',
+          400,
+        );
+      }
+
+      const { refreshToken, ...result } = await GoogleOAuthService.completeAuthorization({
+        code,
+        cookieValue: req.cookies.googleOAuthState,
+        state,
+        context: {
+          ipAddress: req.ip,
+          userAgent: req.get('user-agent'),
+        },
+      });
+
+      GoogleOAuthService.clearOauthCookie(res);
+      res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
+
+      if (wantsJson) {
+        return res.status(200).json(result);
+      }
+
+      const successUrl = new URL(config.oauth.google.frontendCallbackUrl);
+      successUrl.searchParams.set('provider', 'google');
+      successUrl.searchParams.set('status', 'success');
+      res.redirect(302, successUrl.toString());
+    } catch (error: unknown) {
+      GoogleOAuthService.clearOauthCookie(res);
+      if (error instanceof GoogleOAuthError) {
+        return sendGoogleOauthErrorResponse(wantsJson, res, error);
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
+    }
+  }
 }
 
 function isZodError(error: unknown): error is { name: 'ZodError'; errors: unknown[] } {
@@ -181,4 +259,34 @@ function sendRateLimitedResponse(res: Response, error: LoginProtectionError) {
       message: error.message,
     },
   });
+}
+
+function reqAcceptsJson(req: Request) {
+  const acceptHeader = req.get('accept') || '';
+  return acceptHeader.includes('application/json');
+}
+
+function sendGoogleOauthErrorResponse(
+  wantsJson: boolean,
+  res: Response,
+  error: GoogleOAuthError,
+  providerError?: string,
+  providerErrorDescription?: string,
+) {
+  if (wantsJson) {
+    return res.status(error.statusCode).json({
+      error: {
+        code: error.code,
+        message: error.message,
+        providerError,
+        providerErrorDescription,
+      },
+    });
+  }
+
+  const errorUrl = new URL(config.oauth.google.frontendCallbackUrl);
+  errorUrl.searchParams.set('provider', 'google');
+  errorUrl.searchParams.set('status', 'error');
+  errorUrl.searchParams.set('code', error.code);
+  res.redirect(302, errorUrl.toString());
 }
