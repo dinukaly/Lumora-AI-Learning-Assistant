@@ -6,6 +6,7 @@ import UsageEvent from '../analytics/usage-event.model.js';
 import { DocumentsService } from '../documents/documents.service.js';
 import { retryStoredJob } from '../../common/queue/index.js';
 import { NotificationsService } from '../notifications/notifications.service.js';
+import { RefreshSessionService } from '../auth/refresh-session.service.js';
 import type {
   BroadcastAdminNotificationDTO,
   GetAdminUsageAnalyticsDTO,
@@ -191,6 +192,10 @@ export class AdminService {
 
     user.disabledAt = data.disabled ? user.disabledAt ?? new Date() : null;
     await user.save();
+
+    if (data.disabled) {
+      await RefreshSessionService.revokeUserSessions(user._id, 'ACCOUNT_DISABLED');
+    }
 
     return mapAdminUserSummary(user.toObject());
   }
