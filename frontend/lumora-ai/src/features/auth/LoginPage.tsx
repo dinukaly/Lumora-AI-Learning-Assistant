@@ -6,6 +6,7 @@ import { enqueueToast } from '@/app/uiSlice'
 import { useLoginMutation } from './authApi'
 import { setCredentials } from './authSlice'
 import { BrandMark } from '@/components/layout/Brand'
+import GoogleAuthButton from './GoogleAuthButton'
 
 const INPUT_BASE_CLASS =
   'mt-1 block w-full rounded-lg border px-3 py-2 text-gray-900 placeholder-gray-400 focus:outline-none focus:ring-1'
@@ -129,6 +130,9 @@ const LoginPage = () => {
             {isLoading ? 'Signing in...' : 'Sign in'}
           </button>
         </form>
+        <div className="mt-6">
+          <GoogleAuthButton mode="login" disabled={isLoading} />
+        </div>
         <p className="mt-6 text-center text-sm text-gray-500">
           Don't have an account?{' '}
           <Link to="/register" className="font-medium text-emerald-600 hover:text-emerald-500">
