@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import {
   AlertCircle,
+  Chrome,
   KeyRound,
   Mail,
   Pencil,
@@ -23,6 +24,8 @@ import {
 import { Avatar, AvatarFallback, AvatarImage } from '@/components/ui/avatar'
 import { Button } from '@/components/ui/button'
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card'
+
+type AuthProvider = NonNullable<User['authProviders']>[number]
 
 const inputClassName =
   'mt-1 block w-full rounded-lg border border-gray-300 px-3 py-2 text-sm text-gray-900 placeholder-gray-400 focus:border-emerald-500 focus:outline-none focus:ring-1 focus:ring-emerald-500'
@@ -81,6 +84,36 @@ function DetailItem({ label, value }: { label: string; value: string }) {
       <p className="mt-2 text-sm font-semibold text-gray-900">{value}</p>
     </div>
   )
+}
+
+function getConnectedAuthProviders(profile: User): AuthProvider[] {
+  if (Array.isArray(profile.authProviders) && profile.authProviders.length > 0) {
+    return Array.from(new Set<AuthProvider>(profile.authProviders))
+  }
+
+  return profile.hasPassword === false ? [] : ['local']
+}
+
+function getAuthProviderLabel(provider: AuthProvider) {
+  switch (provider) {
+    case 'google':
+      return 'Google'
+    case 'apple':
+      return 'Apple'
+    default:
+      return 'Email and password'
+  }
+}
+
+function getAuthProviderDescription(provider: AuthProvider) {
+  switch (provider) {
+    case 'google':
+      return 'Use your Google account to sign in without a separate Lumora password.'
+    case 'apple':
+      return 'Apple sign-in is reserved for a later provider rollout.'
+    default:
+      return 'This local sign-in method uses your Lumora email address and password.'
+  }
 }
 
 const ProfilePage = () => {
@@ -301,6 +334,11 @@ const ProfilePage = () => {
   const hasProfileChanges = name !== profileDefaults.name
   const hasPasswordChanges = currentPassword.length > 0 || newPassword.length > 0
   const canChangePassword = profile.hasPassword !== false
+  const connectedAuthProviders = getConnectedAuthProviders(profile)
+  const signInMethodsSummary =
+    connectedAuthProviders.length > 0
+      ? connectedAuthProviders.map(getAuthProviderLabel).join(' + ')
+      : 'No sign-in methods available'
 
   return (
     <div className="mx-auto max-w-4xl space-y-6">
@@ -345,10 +383,10 @@ const ProfilePage = () => {
             </div>
 
             <div className="grid flex-1 gap-3 sm:grid-cols-2">
-              <DetailItem label="Sign-in method" value="Email and password" />
+              <DetailItem label="Sign-in methods" value={signInMethodsSummary} />
               <DetailItem label="Member since" value={formatDate(profile.createdAt)} />
               <DetailItem label="Last login" value={formatDate(profile.lastLoginAt)} />
-              <DetailItem label="Status" value={profile.disabledAt ? 'Disabled' : 'Healthy'} />
+              <DetailItem label="Password" value={canChangePassword ? 'Available' : 'Google only'} />
             </div>
           </div>
         </CardContent>
@@ -370,6 +408,40 @@ const ProfilePage = () => {
           </CardContent>
         </Card>
       )}
+
+      <Card>
+        <CardHeader>
+          <CardTitle>Connected sign-in methods</CardTitle>
+          <CardDescription>
+            These are the ways this account can sign in right now.
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <div className="grid gap-4 md:grid-cols-2">
+            {connectedAuthProviders.map((provider) => (
+              <div
+                key={provider}
+                className="rounded-xl border border-gray-200 bg-gray-50 p-4"
+              >
+                <div className="flex items-start gap-3">
+                  <div className="rounded-full bg-white p-2 text-emerald-600 shadow-sm">
+                    {provider === 'google' ? <Chrome className="h-4 w-4 text-sky-600" /> : <KeyRound className="h-4 w-4" />}
+                  </div>
+                  <div className="min-w-0 flex-1">
+                    <div className="flex flex-wrap items-center gap-2">
+                      <p className="text-sm font-medium text-gray-900">{getAuthProviderLabel(provider)}</p>
+                      <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-medium text-emerald-700">
+                        Connected
+                      </span>
+                    </div>
+                    <p className="mt-1 text-xs text-gray-500">{getAuthProviderDescription(provider)}</p>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </div>
+        </CardContent>
+      </Card>
 
       <Card>
         <CardHeader>
