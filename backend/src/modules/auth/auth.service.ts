@@ -13,12 +13,14 @@ function mapAuthUser(user: {
   name: string;
   email: string;
   role: 'USER' | 'ADMIN';
+  emailVerifiedAt?: Date | null;
 }) {
   return {
     id: user._id.toString(),
     name: user.name,
     email: user.email,
     role: user.role,
+    emailVerifiedAt: user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : null,
   };
 }
 
