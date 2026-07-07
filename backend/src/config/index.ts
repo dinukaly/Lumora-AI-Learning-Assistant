@@ -34,6 +34,34 @@ export const config = {
     refreshExpiration: process.env.JWT_REFRESH_EXPIRATION || '7d',
   },
 
+  email: {
+    provider:
+      process.env.EMAIL_PROVIDER
+      || (environment === 'production' ? 'resend' : 'console'),
+    from: process.env.EMAIL_FROM || 'Lumora <no-reply@lumora.local>',
+    verificationTokenTtlMinutes: parseInt(
+      process.env.EMAIL_VERIFICATION_TOKEN_TTL_MINUTES || '1440',
+      10,
+    ),
+    verificationResendCooldownSeconds: parseInt(
+      process.env.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS || '60',
+      10,
+    ),
+    verificationUrlBase:
+      process.env.EMAIL_VERIFICATION_URL_BASE
+      || `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')}/verify-email`,
+    resend: {
+      apiKey: process.env.RESEND_API_KEY || '',
+    },
+    smtp: {
+      host: process.env.SMTP_HOST || '',
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      user: process.env.SMTP_USER || '',
+      password: process.env.SMTP_PASSWORD || '',
+      secure: parseBoolean(process.env.SMTP_SECURE, false),
+    },
+  },
+
   // Chat Provider — OpenRouter (LLM gateway)
   chat: {
     provider: process.env.CHAT_PROVIDER || 'openrouter',
