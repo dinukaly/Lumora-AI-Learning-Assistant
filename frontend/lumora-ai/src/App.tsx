@@ -20,6 +20,7 @@ import AdminAnalyticsPage from '@/features/admin/AdminAnalyticsPage'
 import AdminNotificationsPage from '@/features/admin/AdminNotificationsPage'
 import EmailVerificationPendingPage from '@/features/auth/EmailVerificationPendingPage'
 import VerifyEmailPage from '@/features/auth/VerifyEmailPage'
+import GoogleAuthCallbackPage from '@/features/auth/GoogleAuthCallbackPage'
 import { ToastViewport } from '@/components/ui/toast-viewport'
 
 const App = () => {
@@ -29,6 +30,7 @@ const App = () => {
       <Routes>
         <Route path="/login" element={<LoginPage />} />
         <Route path="/register" element={<RegisterPage />} />
+        <Route path="/auth/google/callback" element={<GoogleAuthCallbackPage />} />
         <Route path="/verify-email" element={<VerifyEmailPage />} />
         <Route element={<AuthGuard />}>
           <Route element={<AppShell />}>
