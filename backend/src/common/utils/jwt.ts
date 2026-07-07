@@ -1,4 +1,5 @@
 import jwt from 'jsonwebtoken';
+import type { JwtPayload } from 'jsonwebtoken';
 import { config } from '../../config/index.js';
 
 export interface TokenPayload {
@@ -24,4 +25,14 @@ export const verifyAccessToken = (token: string): TokenPayload => {
 
 export const verifyRefreshToken = (token: string): TokenPayload => {
   return jwt.verify(token, config.jwt.refreshSecret) as TokenPayload;
+};
+
+export const decodeRefreshToken = (token: string): JwtPayload | null => {
+  const decoded = jwt.decode(token);
+
+  if (typeof decoded === 'object' && decoded !== null) {
+    return decoded;
+  }
+
+  return null;
 };
