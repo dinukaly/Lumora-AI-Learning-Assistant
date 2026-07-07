@@ -148,6 +148,18 @@ export const config = {
   rateLimit: {
     authWindowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS || '900000', 10),
     authMax: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '10', 10),
+    loginProtectionWindowMs: parseInt(
+      process.env.LOGIN_PROTECTION_WINDOW_MS || '900000',
+      10,
+    ),
+    loginProtectionMaxAttempts: parseInt(
+      process.env.LOGIN_PROTECTION_MAX_ATTEMPTS || '5',
+      10,
+    ),
+    loginProtectionLockoutMs: parseInt(
+      process.env.LOGIN_PROTECTION_LOCKOUT_MS || '900000',
+      10,
+    ),
   },
 
   extraction: {
