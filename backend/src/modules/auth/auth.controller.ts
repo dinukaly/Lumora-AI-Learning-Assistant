@@ -10,11 +10,20 @@ const COOKIE_OPTIONS = {
   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
 };
 
+const CLEAR_COOKIE_OPTIONS = {
+  httpOnly: true,
+  secure: config.env === 'production',
+  sameSite: 'strict' as const,
+};
+
 export class AuthController {
   static async register(req: Request, res: Response) {
     try {
       const validatedData = registerSchema.parse(req.body);
-      const { refreshToken, ...result } = await AuthService.register(validatedData);
+      const { refreshToken, ...result } = await AuthService.register(validatedData, {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
       
       res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
       res.status(201).json(result);
@@ -29,7 +38,10 @@ export class AuthController {
   static async login(req: Request, res: Response) {
     try {
       const validatedData = loginSchema.parse(req.body);
-      const { refreshToken, ...result } = await AuthService.login(validatedData);
+      const { refreshToken, ...result } = await AuthService.login(validatedData, {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
       
       res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
       res.status(200).json(result);
@@ -51,7 +63,10 @@ export class AuthController {
         throw new Error('No refresh token provided');
       }
       
-      const { refreshToken: newRefreshToken, ...result } = await AuthService.refresh(refreshToken);
+      const { refreshToken: newRefreshToken, ...result } = await AuthService.refresh(refreshToken, {
+        ipAddress: req.ip,
+        userAgent: req.get('user-agent'),
+      });
       
       res.cookie('refreshToken', newRefreshToken, COOKIE_OPTIONS);
       res.status(200).json(result);
@@ -65,8 +80,8 @@ export class AuthController {
 
   static async logout(req: Request, res: Response) {
     try {
-      await AuthService.logout();
-      res.clearCookie('refreshToken', COOKIE_OPTIONS);
+      await AuthService.logout(req.cookies.refreshToken);
+      res.clearCookie('refreshToken', CLEAR_COOKIE_OPTIONS);
       res.status(200).json({ message: 'Logged out successfully' });
     } catch (error: any) {
       res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: error.message } });
