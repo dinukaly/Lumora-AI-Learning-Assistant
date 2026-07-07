@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
 import {
   AlertCircle,
   Chrome,
@@ -128,6 +128,7 @@ const ProfilePage = () => {
   const [name, setName] = useState('')
   const [profileFormError, setProfileFormError] = useState<string | null>(null)
   const [profileFieldErrors, setProfileFieldErrors] = useState<Record<string, string>>({})
+  const avatarInputRef = useRef<HTMLInputElement | null>(null)
   const [avatarFile, setAvatarFile] = useState<File | null>(null)
   const [avatarPreviewUrl, setAvatarPreviewUrl] = useState<string | null>(null)
   const [avatarError, setAvatarError] = useState<string | null>(null)
@@ -228,8 +229,8 @@ const ProfilePage = () => {
     event.target.value = ''
   }
 
-  const handleAvatarInputClick = (event: React.MouseEvent<HTMLInputElement>) => {
-    event.currentTarget.value = ''
+  const handleAvatarInputClick = () => {
+    avatarInputRef.current?.click()
   }
 
   const renderEditableAvatar = (size: 'large' | 'small') => {
@@ -244,14 +245,15 @@ const ProfilePage = () => {
             {getInitials(name || profile?.name)}
           </AvatarFallback>
         </Avatar>
-        <label
-          htmlFor="profile-avatar-file"
+        <button
+          type="button"
           className={`absolute -bottom-1 -right-1 inline-flex ${editSize} cursor-pointer items-center justify-center rounded-full border border-white bg-gray-900 text-white shadow-sm transition hover:bg-gray-700`}
           aria-label="Change profile image"
           title="Change profile image"
+          onClick={handleAvatarInputClick}
         >
           <Pencil className="h-3.5 w-3.5" />
-        </label>
+        </button>
       </div>
     )
   }
@@ -529,11 +531,14 @@ const ProfilePage = () => {
                 </div>
 
                 <input
+                  ref={avatarInputRef}
                   id="profile-avatar-file"
                   type="file"
                   accept="image/jpeg,image/png,image/webp"
                   className="sr-only"
-                  onClick={handleAvatarInputClick}
+                  onClick={(event) => {
+                    event.currentTarget.value = ''
+                  }}
                   onChange={handleAvatarSelect}
                 />
               </div>
