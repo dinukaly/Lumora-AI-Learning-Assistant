@@ -1,14 +1,16 @@
 import { Router } from 'express';
 import { DocumentsController } from './documents.controller.js';
 import { upload } from './documents.service.js';
-import { requireAuth } from '../../common/middleware/auth.js';
+import { requireAuth, requireVerified } from '../../common/middleware/auth.js';
 
 const router = Router();
 
-router.post('/upload', requireAuth, upload.single('file'), DocumentsController.upload);
-router.get('/', requireAuth, DocumentsController.list);
-router.get('/:id/view', requireAuth, DocumentsController.view);
-router.get('/:id', requireAuth, DocumentsController.getById);
-router.delete('/:id', requireAuth, DocumentsController.remove);
+router.use(requireAuth, requireVerified);
+
+router.post('/upload', upload.single('file'), DocumentsController.upload);
+router.get('/', DocumentsController.list);
+router.get('/:id/view', DocumentsController.view);
+router.get('/:id', DocumentsController.getById);
+router.delete('/:id', DocumentsController.remove);
 
 export default router;

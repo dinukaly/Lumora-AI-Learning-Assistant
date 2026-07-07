@@ -10,7 +10,7 @@ async function main() {
   const {
     closeDocumentQueue,
   } = await import('../src/common/queue/index.js');
-  const { documentWorker } = await import('../src/common/queue/worker.js');
+  const { startDocumentWorker, stopDocumentWorker } = await import('../src/common/queue/worker.js');
   const { default: User } = await import('../src/modules/users/user.model.js');
   const { default: Document } = await import('../src/modules/documents/document.model.js');
   const { default: DocumentChunk } = await import('../src/modules/documents/document-chunk.model.js');
@@ -24,6 +24,7 @@ async function main() {
     email: `verify-t51-${Date.now()}@example.com`,
     passwordHash: 'password123',
     role: 'USER',
+    emailVerifiedAt: new Date(),
   });
 
   const document = await Document.create({
@@ -62,6 +63,7 @@ async function main() {
   ]);
 
   const accessToken = generateAccessToken({ userId: user.id, role: 'USER' });
+  startDocumentWorker();
   const server = app.listen(0);
 
   try {
@@ -145,7 +147,7 @@ async function main() {
       User.deleteMany({ _id: user._id }),
     ]);
 
-    await documentWorker.close();
+    await stopDocumentWorker();
     await closeDocumentQueue();
     await mongoose.disconnect();
   }

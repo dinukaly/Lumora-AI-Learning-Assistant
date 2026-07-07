@@ -92,6 +92,25 @@ const DashboardPage = () => {
         </p>
       </div>
 
+      {!user?.emailVerifiedAt && (
+        <Card className="border-amber-200 bg-amber-50">
+          <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex items-start gap-3">
+              <AlertCircle className="mt-0.5 h-5 w-5 text-amber-600" />
+              <div>
+                <p className="text-sm font-medium text-amber-950">Verify your email to unlock learning features.</p>
+                <p className="text-sm text-amber-800">
+                  Your account works for profile access and verification management, but documents, AI tools, flashcards, and quizzes are still locked.
+                </p>
+              </div>
+            </div>
+            <Button variant="outline" onClick={() => navigate('/verify-email/pending')}>
+              Open verification help
+            </Button>
+          </CardContent>
+        </Card>
+      )}
+
       {isProgressError && (
         <Card className="border-rose-200 bg-rose-50">
           <CardContent className="flex flex-col gap-3 p-4 sm:flex-row sm:items-center sm:justify-between">
@@ -173,17 +192,29 @@ const DashboardPage = () => {
               <CardDescription>Jump back into learning</CardDescription>
             </CardHeader>
             <CardContent className="space-y-3">
-              <Button className="w-full justify-start gap-2" variant="default" onClick={() => navigate('/documents')}>
+              <Button
+                className="w-full justify-start gap-2"
+                variant="default"
+                onClick={() => navigate(user?.emailVerifiedAt ? '/documents' : '/verify-email/pending')}
+              >
                 <Plus className="h-4 w-4" />
-                Upload or open documents
+                {user?.emailVerifiedAt ? 'Upload or open documents' : 'Verify email to unlock documents'}
               </Button>
-              <Button className="w-full justify-start gap-2" variant="outline" onClick={() => navigate('/flashcards')}>
+              <Button
+                className="w-full justify-start gap-2"
+                variant="outline"
+                onClick={() => navigate(user?.emailVerifiedAt ? '/flashcards' : '/verify-email/pending')}
+              >
                 <Sparkles className="h-4 w-4" />
-                Review flashcards
+                {user?.emailVerifiedAt ? 'Review flashcards' : 'Unlock flashcards'}
               </Button>
-              <Button className="w-full justify-start gap-2" variant="outline" onClick={() => navigate('/quizzes')}>
+              <Button
+                className="w-full justify-start gap-2"
+                variant="outline"
+                onClick={() => navigate(user?.emailVerifiedAt ? '/quizzes' : '/verify-email/pending')}
+              >
                 <Sparkles className="h-4 w-4" />
-                Take a quiz
+                {user?.emailVerifiedAt ? 'Take a quiz' : 'Unlock quizzes'}
               </Button>
             </CardContent>
           </Card>

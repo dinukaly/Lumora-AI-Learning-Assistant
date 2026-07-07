@@ -34,6 +34,67 @@ export const config = {
     refreshExpiration: process.env.JWT_REFRESH_EXPIRATION || '7d',
   },
 
+  oauth: {
+    google: {
+      enabled: parseBoolean(
+        process.env.GOOGLE_OAUTH_ENABLED,
+        Boolean(
+          process.env.GOOGLE_OAUTH_CLIENT_ID
+          && process.env.GOOGLE_OAUTH_CLIENT_SECRET
+          && process.env.GOOGLE_OAUTH_REDIRECT_URI,
+        ),
+      ),
+      clientId: process.env.GOOGLE_OAUTH_CLIENT_ID || '',
+      clientSecret: process.env.GOOGLE_OAUTH_CLIENT_SECRET || '',
+      redirectUri: process.env.GOOGLE_OAUTH_REDIRECT_URI || '',
+      frontendCallbackUrl:
+        process.env.GOOGLE_OAUTH_FRONTEND_CALLBACK_URL
+        || `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')}/auth/google/callback`,
+      authorizationUrl:
+        process.env.GOOGLE_OAUTH_AUTHORIZATION_URL
+        || 'https://accounts.google.com/o/oauth2/v2/auth',
+      tokenUrl:
+        process.env.GOOGLE_OAUTH_TOKEN_URL
+        || 'https://oauth2.googleapis.com/token',
+      userInfoUrl:
+        process.env.GOOGLE_OAUTH_USERINFO_URL
+        || 'https://openidconnect.googleapis.com/v1/userinfo',
+      discoveryUrl:
+        process.env.GOOGLE_OAUTH_DISCOVERY_URL
+        || 'https://accounts.google.com/.well-known/openid-configuration',
+      stateTtlMs: parseInt(process.env.GOOGLE_OAUTH_STATE_TTL_MS || '600000', 10),
+      scopes: ['openid', 'email', 'profile'],
+    },
+  },
+
+  email: {
+    provider:
+      process.env.EMAIL_PROVIDER
+      || (environment === 'production' ? 'resend' : 'console'),
+    from: process.env.EMAIL_FROM || 'Lumora <no-reply@lumora.local>',
+    verificationTokenTtlMinutes: parseInt(
+      process.env.EMAIL_VERIFICATION_TOKEN_TTL_MINUTES || '1440',
+      10,
+    ),
+    verificationResendCooldownSeconds: parseInt(
+      process.env.EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS || '60',
+      10,
+    ),
+    verificationUrlBase:
+      process.env.EMAIL_VERIFICATION_URL_BASE
+      || `${(process.env.FRONTEND_URL || 'http://localhost:5173').replace(/\/+$/, '')}/verify-email`,
+    resend: {
+      apiKey: process.env.RESEND_API_KEY || '',
+    },
+    smtp: {
+      host: process.env.SMTP_HOST || '',
+      port: parseInt(process.env.SMTP_PORT || '587', 10),
+      user: process.env.SMTP_USER || '',
+      password: process.env.SMTP_PASSWORD || '',
+      secure: parseBoolean(process.env.SMTP_SECURE, false),
+    },
+  },
+
   // Chat Provider — OpenRouter (LLM gateway)
   chat: {
     provider: process.env.CHAT_PROVIDER || 'openrouter',
@@ -65,17 +126,46 @@ export const config = {
     },
   },
 
-  // Storage — S3-compatible (MinIO local → Cloudflare R2 prod)
+  // Storage — S3-compatible Cloudflare R2
   storage: {
-    endpoint: process.env.S3_ENDPOINT || 'http://localhost:9000',
-    region: process.env.S3_REGION || 'us-east-1',
-    accessKeyId: process.env.S3_ACCESS_KEY_ID || 'minioadmin',
-    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || 'minioadmin',
+    endpoint: process.env.S3_ENDPOINT || '',
+    region: process.env.S3_REGION || 'auto',
+    accessKeyId: process.env.S3_ACCESS_KEY_ID || '',
+    secretAccessKey: process.env.S3_SECRET_ACCESS_KEY || '',
     bucketName: process.env.S3_BUCKET_NAME || 'lumora-documents',
-    useSsl: process.env.S3_USE_SSL === 'true',
+    useSsl: parseBoolean(process.env.S3_USE_SSL, true),
     publicBaseUrl: process.env.S3_PUBLIC_BASE_URL || '',
     forcePathStyle: parseBoolean(process.env.S3_FORCE_PATH_STYLE, true),
-    autoCreateBucket: parseBoolean(process.env.S3_AUTO_CREATE_BUCKET, environment !== 'production'),
+    autoCreateBucket: parseBoolean(process.env.S3_AUTO_CREATE_BUCKET, false),
+  },
+
+  avatar: {
+    maxUploadBytes: parseInt(process.env.AVATAR_MAX_UPLOAD_BYTES || '2097152', 10),
+    outputSizePx: parseInt(process.env.AVATAR_OUTPUT_SIZE_PX || '256', 10),
+    publicBaseUrl: process.env.AVATAR_PUBLIC_BASE_URL || '',
+    storage: {
+      endpoint: process.env.AVATAR_S3_ENDPOINT || process.env.S3_ENDPOINT || '',
+      region: process.env.AVATAR_S3_REGION || process.env.S3_REGION || 'auto',
+      accessKeyId: process.env.AVATAR_S3_ACCESS_KEY_ID || process.env.S3_ACCESS_KEY_ID || '',
+      secretAccessKey: process.env.AVATAR_S3_SECRET_ACCESS_KEY || process.env.S3_SECRET_ACCESS_KEY || '',
+      bucketName: process.env.AVATAR_S3_BUCKET_NAME || process.env.S3_BUCKET_NAME || 'lumora-avatars',
+      publicBaseUrl: process.env.AVATAR_PUBLIC_BASE_URL || '',
+      forcePathStyle: parseBoolean(
+        process.env.AVATAR_S3_FORCE_PATH_STYLE || process.env.S3_FORCE_PATH_STYLE,
+        true,
+      ),
+      autoCreateBucket: parseBoolean(process.env.AVATAR_S3_AUTO_CREATE_BUCKET, false),
+      missingConfigLabels: {
+        endpoint: process.env.AVATAR_S3_ENDPOINT ? 'AVATAR_S3_ENDPOINT' : 'S3_ENDPOINT',
+        accessKeyId: process.env.AVATAR_S3_ACCESS_KEY_ID
+          ? 'AVATAR_S3_ACCESS_KEY_ID'
+          : 'S3_ACCESS_KEY_ID',
+        secretAccessKey: process.env.AVATAR_S3_SECRET_ACCESS_KEY
+          ? 'AVATAR_S3_SECRET_ACCESS_KEY'
+          : 'S3_SECRET_ACCESS_KEY',
+        bucketName: process.env.AVATAR_S3_BUCKET_NAME ? 'AVATAR_S3_BUCKET_NAME' : 'S3_BUCKET_NAME',
+      },
+    },
   },
 
   // Redis — BullMQ job queue
@@ -91,6 +181,18 @@ export const config = {
   rateLimit: {
     authWindowMs: parseInt(process.env.AUTH_RATE_LIMIT_WINDOW_MS || '900000', 10),
     authMax: parseInt(process.env.AUTH_RATE_LIMIT_MAX || '10', 10),
+    loginProtectionWindowMs: parseInt(
+      process.env.LOGIN_PROTECTION_WINDOW_MS || '900000',
+      10,
+    ),
+    loginProtectionMaxAttempts: parseInt(
+      process.env.LOGIN_PROTECTION_MAX_ATTEMPTS || '5',
+      10,
+    ),
+    loginProtectionLockoutMs: parseInt(
+      process.env.LOGIN_PROTECTION_LOCKOUT_MS || '900000',
+      10,
+    ),
   },
 
   extraction: {

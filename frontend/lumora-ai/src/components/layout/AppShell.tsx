@@ -1,25 +1,40 @@
 import { useState } from "react";
 import { Outlet } from "react-router-dom";
 import { Menu } from "lucide-react";
+import { useAppDispatch, useAppSelector } from "@/app/hooks";
+import { useGetProfileQuery } from "@/features/auth/authApi";
+import { updateUser } from "@/features/auth/authSlice";
 import { Sidebar } from "./Sidebar";
 import { TopBar } from "./TopBar";
 import { RealtimeBridge } from "./RealtimeBridge";
 import { BrandLockup } from "./Brand";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
-import { ToastViewport } from "@/components/ui/toast-viewport";
+import { useEffect } from "react";
 
 const AppShell = () => {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+  const dispatch = useAppDispatch();
+  const user = useAppSelector((state) => state.auth.user);
+  const { data: profile } = useGetProfileQuery(undefined, {
+    skip: !user,
+  });
+
+  useEffect(() => {
+    if (!profile) {
+      return;
+    }
+
+    dispatch(updateUser(profile));
+  }, [dispatch, profile]);
 
   return (
-    <div className="flex h-screen bg-gray-50 overflow-hidden">
+    <div className="fixed inset-0 flex min-h-0 overflow-hidden bg-gray-50">
       <RealtimeBridge />
-      <ToastViewport />
       {/* Desktop Sidebar */}
       <Sidebar className="hidden lg:flex" />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
+      <div className="flex min-h-0 flex-1 flex-col overflow-hidden">
         {/* Mobile Top Bar with Hamburger */}
         <div className="flex h-16 items-center justify-between border-b border-gray-200 bg-white px-4 lg:hidden">
           <BrandLockup />
@@ -40,7 +55,7 @@ const AppShell = () => {
         <TopBar />
 
         {/* Page Content */}
-        <main className="flex-1 overflow-y-auto p-4 sm:p-8">
+        <main className="min-h-0 flex-1 overflow-y-auto p-4 sm:p-8">
           <div className="mx-auto max-w-7xl">
             <Outlet />
           </div>

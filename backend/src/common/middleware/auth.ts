@@ -6,6 +6,7 @@ export interface AuthRequest extends Request {
   user?: {
     userId: string;
     role: 'USER' | 'ADMIN';
+    emailVerifiedAt?: string | null;
   };
 }
 
@@ -26,7 +27,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
   try {
     const payload = verifyAccessToken(token);
 
-    const user = await User.findById(payload.userId).select('role disabledAt');
+    const user = await User.findById(payload.userId).select('role disabledAt emailVerifiedAt');
     if (!user) {
       return res.status(401).json({
         error: {
@@ -48,6 +49,7 @@ export const requireAuth = async (req: AuthRequest, res: Response, next: NextFun
     req.user = {
       userId: user._id.toString(),
       role: user.role,
+      emailVerifiedAt: user.emailVerifiedAt ? user.emailVerifiedAt.toISOString() : null,
     };
     next();
   } catch {
@@ -70,4 +72,17 @@ export const requireAdmin = (req: AuthRequest, res: Response, next: NextFunction
     });
   }
   next();
+};
+
+export const requireVerified = (req: AuthRequest, res: Response, next: NextFunction) => {
+  if (req.user?.emailVerifiedAt) {
+    return next();
+  }
+
+  return res.status(403).json({
+    error: {
+      code: 'EMAIL_UNVERIFIED',
+      message: 'Verify your email to use this feature.',
+    },
+  });
 };

@@ -23,6 +23,13 @@
     "verify:t42": "tsx scripts/verify-ai-orchestrator.ts",
     "verify:t43": "tsx scripts/verify-conversations.ts",
     "verify:t44": "tsx scripts/verify-ai-chat.ts",
+    "verify:t85": "tsx scripts/verify-email-verification.ts",
+    "verify:t86": "tsx scripts/verify-email-verification-gate.ts",
+    "verify:t87": "tsx scripts/verify-login-protection.ts",
+    "verify:t88": "tsx scripts/verify-google-oauth.ts",
+    "verify:t811": "tsx scripts/verify-phase8-regression.ts",
+    "verify:t84": "tsx scripts/verify-refresh-sessions.ts",
+    "verify:t83": "tsx scripts/verify-auth-data-model.ts",
     "verify:t51": "tsx scripts/verify-flashcards.ts",
     "verify:t53": "tsx scripts/verify-quizzes.ts",
     "format": "prettier --write src/**/*.ts"
@@ -43,6 +50,8 @@
     "mongoose": "^8.9.5",
     "morgan": "^1.10.0",
     "multer": "^2.2.0",
+    "nodemailer": "^9.0.3",
+    "sharp": "^0.35.3",
     "socket.io": "^4.8.3",
     "socket.io-client": "^4.8.3",
     "zod": "^3.24.1"

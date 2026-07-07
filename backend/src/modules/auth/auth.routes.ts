@@ -9,5 +9,9 @@ router.post('/register', authRateLimit, AuthController.register);
 router.post('/login', authRateLimit, AuthController.login);
 router.post('/refresh', authRateLimit, AuthController.refresh);
 router.post('/logout', requireAuth, AuthController.logout);
+router.get('/oauth/google/start', authRateLimit, AuthController.startGoogleOAuth);
+router.get('/oauth/google/callback', authRateLimit, AuthController.googleOAuthCallback);
+router.post('/verification/resend', requireAuth, authRateLimit, AuthController.resendVerificationEmail);
+router.get('/verification/verify', authRateLimit, AuthController.verifyEmail);
 
 export default router;
