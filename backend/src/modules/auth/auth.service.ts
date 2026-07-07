@@ -1,5 +1,6 @@
 import User from '../users/user.model.js';
 import { RegisterDTO, LoginDTO } from './auth.dto.js';
+import AuthIdentity from './auth-identity.model.js';
 import { generateAccessToken, generateRefreshToken, verifyRefreshToken } from '../../common/utils/jwt.js';
 
 export class AuthService {
@@ -16,6 +17,12 @@ export class AuthService {
     });
 
     await user.save();
+    await AuthIdentity.create({
+      userId: user._id,
+      provider: 'local',
+      emailAtProvider: user.email,
+      emailVerifiedAtProvider: false,
+    });
 
     const payload = { userId: user._id.toString(), role: user.role };
     const accessToken = generateAccessToken(payload);

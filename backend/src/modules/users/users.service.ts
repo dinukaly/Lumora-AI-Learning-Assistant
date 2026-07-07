@@ -120,6 +120,7 @@ export class UsersService {
     }
 
     user.passwordHash = data.newPassword;
+    user.lastPasswordChangedAt = new Date();
     await user.save();
 
     return { message: 'Password updated successfully' };
