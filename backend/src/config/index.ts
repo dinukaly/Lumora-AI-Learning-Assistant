@@ -86,6 +86,9 @@ export const config = {
     resend: {
       apiKey: process.env.RESEND_API_KEY || '',
     },
+    sendgrid: {
+      apiKey: process.env.SENDGRID_API_KEY || '',
+    },
     smtp: {
       host: process.env.SMTP_HOST || '',
       port: parseInt(process.env.SMTP_PORT || '587', 10),

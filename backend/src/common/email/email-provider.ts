@@ -6,7 +6,7 @@ export interface SendEmailInput {
 }
 
 export interface SentEmailResult {
-  provider: 'console' | 'resend' | 'smtp';
+  provider: 'console' | 'resend' | 'sendgrid' | 'smtp';
   messageId?: string;
 }
 
