@@ -1,6 +1,6 @@
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
-import { loginSchema, registerSchema, verifyEmailQuerySchema } from './auth.dto.js';
+import { loginSchema, refreshSchema, registerSchema, verifyEmailQuerySchema } from './auth.dto.js';
 import { config } from '../../config/index.js';
 import { AuthRequest } from '../../common/middleware/auth.js';
 import { EmailVerificationError, EmailVerificationService } from './email-verification.service.js';
@@ -38,20 +38,7 @@ export class AuthController {
   static async register(req: Request, res: Response) {
     try {
       const validatedData = registerSchema.parse(req.body);
-      const { refreshToken, ...result } = await AuthService.register(validatedData, {
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-      });
-
-      let verificationEmailSent = false;
-      try {
-        const verificationResult = await EmailVerificationService.sendVerificationEmailForUser(
-          result.user.id,
-        );
-        verificationEmailSent = verificationResult.sent;
-      } catch (verificationError) {
-        console.error('Failed to send verification email after signup', verificationError);
-      }
+      const { refreshToken, result, verificationEmailSent } = await registerWithVerification(req, validatedData);
       
       res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
       res.status(201).json({
@@ -71,24 +58,12 @@ export class AuthController {
   static async login(req: Request, res: Response) {
     try {
       const validatedData = loginSchema.parse(req.body);
-      const { refreshToken, ...result } = await AuthService.login(validatedData, {
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-      });
+      const { refreshToken, ...result } = await AuthService.login(validatedData, getRequestContext(req));
       
       res.cookie('refreshToken', refreshToken, COOKIE_OPTIONS);
       res.status(200).json(result);
     } catch (error: unknown) {
-      if (isZodError(error)) {
-        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
-      }
-      if (error instanceof LoginProtectionError) {
-        return sendRateLimitedResponse(res, error);
-      }
-      if (getErrorMessage(error) === 'Account is disabled') {
-        return res.status(403).json({ error: { code: 'FORBIDDEN', message: getErrorMessage(error) } });
-      }
-      res.status(401).json({ error: { code: 'UNAUTHORIZED', message: getErrorMessage(error) } });
+      return sendLoginErrorResponse(res, error);
     }
   }
 
@@ -99,18 +74,12 @@ export class AuthController {
         throw new Error('No refresh token provided');
       }
       
-      const { refreshToken: newRefreshToken, ...result } = await AuthService.refresh(refreshToken, {
-        ipAddress: req.ip,
-        userAgent: req.get('user-agent'),
-      });
+      const { refreshToken: newRefreshToken, ...result } = await AuthService.refresh(refreshToken, getRequestContext(req));
       
       res.cookie('refreshToken', newRefreshToken, COOKIE_OPTIONS);
       res.status(200).json(result);
     } catch (error: unknown) {
-      if (getErrorMessage(error) === 'Account is disabled') {
-        return res.status(403).json({ error: { code: 'FORBIDDEN', message: getErrorMessage(error) } });
-      }
-      res.status(401).json({ error: { code: 'UNAUTHORIZED', message: getErrorMessage(error) } });
+      return sendRefreshErrorResponse(res, error);
     }
   }
 
@@ -120,6 +89,62 @@ export class AuthController {
       res.clearCookie('refreshToken', CLEAR_COOKIE_OPTIONS);
       res.status(200).json({ message: 'Logged out successfully' });
     } catch (error: unknown) {
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
+    }
+  }
+
+  static async mobileRegister(req: Request, res: Response) {
+    try {
+      const validatedData = registerSchema.parse(req.body);
+      const { refreshToken, result, verificationEmailSent } = await registerWithVerification(req, validatedData);
+
+      res.status(201).json({
+        ...result,
+        refreshToken,
+        emailVerificationRequired: true,
+        verificationEmailSent,
+        message: 'Account created. Verify your email to unlock all features.',
+      });
+    } catch (error: unknown) {
+      if (isZodError(error)) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
+      }
+      res.status(400).json({ error: { code: 'BAD_REQUEST', message: getErrorMessage(error) } });
+    }
+  }
+
+  static async mobileLogin(req: Request, res: Response) {
+    try {
+      const validatedData = loginSchema.parse(req.body);
+      const result = await AuthService.login(validatedData, getRequestContext(req));
+      res.status(200).json(result);
+    } catch (error: unknown) {
+      return sendLoginErrorResponse(res, error);
+    }
+  }
+
+  static async mobileRefresh(req: Request, res: Response) {
+    try {
+      const { refreshToken } = refreshSchema.parse(req.body);
+      const result = await AuthService.refresh(refreshToken, getRequestContext(req));
+      res.status(200).json(result);
+    } catch (error: unknown) {
+      if (isZodError(error)) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
+      }
+      return sendRefreshErrorResponse(res, error);
+    }
+  }
+
+  static async mobileLogout(req: Request, res: Response) {
+    try {
+      const { refreshToken } = refreshSchema.parse(req.body);
+      await AuthService.logout(refreshToken);
+      res.status(200).json({ message: 'Logged out successfully' });
+    } catch (error: unknown) {
+      if (isZodError(error)) {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
+      }
       res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
     }
   }
@@ -246,6 +271,50 @@ function getErrorMessage(error: unknown) {
   }
 
   return 'Unexpected error';
+}
+
+function getRequestContext(req: Request) {
+  return {
+    ipAddress: req.ip,
+    userAgent: req.get('user-agent'),
+  };
+}
+
+async function registerWithVerification(req: Request, validatedData: ReturnType<typeof registerSchema.parse>) {
+  const { refreshToken, ...result } = await AuthService.register(validatedData, getRequestContext(req));
+
+  let verificationEmailSent = false;
+  try {
+    const verificationResult = await EmailVerificationService.sendVerificationEmailForUser(
+      result.user.id,
+    );
+    verificationEmailSent = verificationResult.sent;
+  } catch (verificationError) {
+    console.error('Failed to send verification email after signup', verificationError);
+  }
+
+  return { refreshToken, result, verificationEmailSent };
+}
+
+function sendLoginErrorResponse(res: Response, error: unknown) {
+  if (isZodError(error)) {
+    return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
+  }
+  if (error instanceof LoginProtectionError) {
+    return sendRateLimitedResponse(res, error);
+  }
+  if (getErrorMessage(error) === 'Account is disabled') {
+    return res.status(403).json({ error: { code: 'FORBIDDEN', message: getErrorMessage(error) } });
+  }
+  return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: getErrorMessage(error) } });
+}
+
+function sendRefreshErrorResponse(res: Response, error: unknown) {
+  if (getErrorMessage(error) === 'Account is disabled') {
+    return res.status(403).json({ error: { code: 'FORBIDDEN', message: getErrorMessage(error) } });
+  }
+
+  return res.status(401).json({ error: { code: 'UNAUTHORIZED', message: getErrorMessage(error) } });
 }
 
 function sendRateLimitedResponse(res: Response, error: LoginProtectionError) {
