@@ -17,6 +17,7 @@ export interface IUser extends Document {
   lockedUntil?: Date | null;
   lastPasswordChangedAt?: Date | null;
   disabledAt?: Date | null;
+  expoPushTokens: string[];
   createdAt: Date;
   updatedAt: Date;
   comparePassword(password: string): Promise<boolean>;
@@ -42,6 +43,7 @@ const UserSchema: Schema = new Schema(
     lockedUntil: { type: Date, default: null },
     lastPasswordChangedAt: { type: Date, default: null },
     disabledAt: { type: Date, default: null },
+    expoPushTokens: { type: [String], default: [] },
   },
   {
     timestamps: true,
