@@ -99,6 +99,17 @@ export const config = {
   },
 
   // Chat Provider — OpenRouter (LLM gateway)
+  pushNotifications: {
+    enabled: parseBoolean(process.env.PUSH_NOTIFICATIONS_ENABLED, false),
+    expoSendUrl:
+      process.env.EXPO_PUSH_SEND_URL
+      || 'https://exp.host/--/api/v2/push/send',
+    accessToken:
+      process.env.EXPO_PUSH_ACCESS_TOKEN
+      || process.env.EXPO_ACCESS_TOKEN
+      || '',
+  },
+
   chat: {
     provider: process.env.CHAT_PROVIDER || 'openrouter',
     openrouter: {
