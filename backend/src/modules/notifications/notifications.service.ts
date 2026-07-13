@@ -1,7 +1,8 @@
 import mongoose from 'mongoose';
-import Notification, { type INotification, type NotificationType } from './notification.model.js';
+import Notification, { type NotificationType } from './notification.model.js';
 import { emitToUser, SOCKET_EVENTS } from '../../common/realtime/socket.js';
 import User from '../users/user.model.js';
+import { PushNotificationsService } from './push-notifications.service.js';
 
 interface NotificationInput {
   userId: string;
@@ -110,8 +111,19 @@ export class NotificationsService {
 
   static async createNotification(input: NotificationInput) {
     const notification = await Notification.create(input);
+    const serializedNotification = this.serializeNotification(notification);
     emitToUser(input.userId, SOCKET_EVENTS.notificationNew, {
-      notification: this.serializeNotification(notification),
+      notification: serializedNotification,
+    });
+    void PushNotificationsService.sendNotification({
+      userId: input.userId,
+      title: input.title,
+      body: input.body,
+      data: {
+        notification: serializedNotification,
+      },
+    }).catch((error) => {
+      console.warn('Failed to send push notification', error);
     });
     return notification;
   }
@@ -139,8 +151,19 @@ export class NotificationsService {
     );
 
     for (const notification of notifications) {
+      const serializedNotification = this.serializeNotification(notification);
       emitToUser(notification.userId.toString(), SOCKET_EVENTS.notificationNew, {
-        notification: this.serializeNotification(notification),
+        notification: serializedNotification,
+      });
+      void PushNotificationsService.sendNotification({
+        userId: notification.userId.toString(),
+        title: notification.title,
+        body: notification.body,
+        data: {
+          notification: serializedNotification,
+        },
+      }).catch((error) => {
+        console.warn('Failed to send push notification', error);
       });
     }
 

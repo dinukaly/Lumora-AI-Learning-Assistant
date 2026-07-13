@@ -1,7 +1,12 @@
 import { Response } from 'express';
 import { AuthRequest } from '../../common/middleware/auth.js';
 import { UsersService } from './users.service.js';
-import { updateProfileSchema, changePasswordSchema } from './users.dto.js';
+import {
+  updateProfileSchema,
+  changePasswordSchema,
+  registerPushTokenSchema,
+  removePushTokenSchema,
+} from './users.dto.js';
 
 export class UsersController {
   static async getProfile(req: AuthRequest, res: Response) {
@@ -63,6 +68,40 @@ export class UsersController {
       if (error.name === 'ZodError') {
         return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
       }
+      res.status(400).json({ error: { code: 'BAD_REQUEST', message: error.message } });
+    }
+  }
+
+  static async registerPushToken(req: AuthRequest, res: Response) {
+    try {
+      const validatedData = registerPushTokenSchema.parse(req.body);
+      const result = await UsersService.registerPushToken(req.user!.userId, validatedData);
+      res.json(result);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
+      }
+      if (error.message === 'User not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
+      }
+
+      res.status(400).json({ error: { code: 'BAD_REQUEST', message: error.message } });
+    }
+  }
+
+  static async removePushToken(req: AuthRequest, res: Response) {
+    try {
+      const validatedData = removePushTokenSchema.parse(req.body);
+      const result = await UsersService.removePushToken(req.user!.userId, validatedData);
+      res.json(result);
+    } catch (error: any) {
+      if (error.name === 'ZodError') {
+        return res.status(400).json({ error: { code: 'VALIDATION_ERROR', details: error.errors } });
+      }
+      if (error.message === 'User not found') {
+        return res.status(404).json({ error: { code: 'NOT_FOUND', message: error.message } });
+      }
+
       res.status(400).json({ error: { code: 'BAD_REQUEST', message: error.message } });
     }
   }

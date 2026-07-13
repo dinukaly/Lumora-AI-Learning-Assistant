@@ -9,6 +9,8 @@ router.get('/me', requireAuth, UsersController.getProfile);
 router.patch('/me', requireAuth, UsersController.updateProfile);
 router.post('/me/avatar', requireAuth, handleAvatarUpload, UsersController.updateAvatar);
 router.patch('/me/password', requireAuth, UsersController.changePassword);
+router.post('/me/push-tokens', requireAuth, UsersController.registerPushToken);
+router.delete('/me/push-tokens', requireAuth, UsersController.removePushToken);
 
 export default router;
 

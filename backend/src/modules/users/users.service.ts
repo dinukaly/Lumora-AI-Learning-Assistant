@@ -5,7 +5,12 @@ import { config } from '../../config/index.js';
 import { S3CompatibleStorageProvider } from '../../common/storage/index.js';
 import type { StorageProvider } from '../../common/storage/index.js';
 import User from './user.model.js';
-import { UpdateProfileDTO, ChangePasswordDTO } from './users.dto.js';
+import {
+  UpdateProfileDTO,
+  ChangePasswordDTO,
+  RegisterPushTokenDTO,
+  RemovePushTokenDTO,
+} from './users.dto.js';
 
 const AVATAR_ALLOWED_MIME_TYPES = ['image/jpeg', 'image/png', 'image/webp'];
 const AVATAR_OUTPUT_CONTENT_TYPE = 'image/webp';
@@ -125,6 +130,40 @@ export class UsersService {
 
     return { message: 'Password updated successfully' };
   }
+
+  static async registerPushToken(userId: string, data: RegisterPushTokenDTO) {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $addToSet: { expoPushTokens: data.token } },
+      { new: true, runValidators: true },
+    );
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return {
+      message: 'Push token registered successfully',
+      tokenCount: user.expoPushTokens.length,
+    };
+  }
+
+  static async removePushToken(userId: string, data: RemovePushTokenDTO) {
+    const user = await User.findByIdAndUpdate(
+      userId,
+      { $pull: { expoPushTokens: data.token } },
+      { new: true, runValidators: true },
+    );
+
+    if (!user) {
+      throw new Error('User not found');
+    }
+
+    return {
+      message: 'Push token removed successfully',
+      tokenCount: user.expoPushTokens.length,
+    };
+  }
 }
 
 async function processAvatar(input: Buffer) {
@@ -166,12 +205,16 @@ function formatBytes(bytes: number) {
 
 function serializeUserProfile(user: InstanceType<typeof User>) {
   const userObject = user.toObject();
-  const { passwordHash, ...safeUser } = userObject as typeof userObject & { passwordHash?: string };
+  const { passwordHash, expoPushTokens, ...safeUser } = userObject as typeof userObject & {
+    passwordHash?: string;
+    expoPushTokens?: string[];
+  };
   const authProviders = Array.isArray(user.authProviderSummary) && user.authProviderSummary.length > 0
     ? [...new Set(user.authProviderSummary)]
     : passwordHash
       ? ['local']
       : [];
+  void expoPushTokens;
 
   return {
     ...safeUser,
