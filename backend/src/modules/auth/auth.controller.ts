@@ -1,6 +1,12 @@
 import { Request, Response } from 'express';
 import { AuthService } from './auth.service.js';
-import { loginSchema, refreshSchema, registerSchema, verifyEmailQuerySchema } from './auth.dto.js';
+import {
+  loginSchema,
+  mobileGoogleOauthStartQuerySchema,
+  refreshSchema,
+  registerSchema,
+  verifyEmailQuerySchema,
+} from './auth.dto.js';
 import { config } from '../../config/index.js';
 import { AuthRequest } from '../../common/middleware/auth.js';
 import { EmailVerificationError, EmailVerificationService } from './email-verification.service.js';
@@ -149,6 +155,36 @@ export class AuthController {
     }
   }
 
+  static async startMobileGoogleOAuth(req: Request, res: Response) {
+    try {
+      const { callbackUrl } = mobileGoogleOauthStartQuerySchema.parse(req.query);
+      const { authorizationUrl } = GoogleOAuthService.createMobileAuthorizationUrl({
+        callbackUrl,
+      });
+      res.status(200).json({ authorizationUrl });
+    } catch (error: unknown) {
+      if (isZodError(error)) {
+        return res.status(400).json({
+          error: {
+            code: 'VALIDATION_ERROR',
+            details: error.errors,
+          },
+        });
+      }
+
+      if (error instanceof GoogleOAuthError) {
+        return res.status(error.statusCode).json({
+          error: {
+            code: error.code,
+            message: error.message,
+          },
+        });
+      }
+
+      res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
+    }
+  }
+
   static async resendVerificationEmail(req: AuthRequest, res: Response) {
     try {
       await EmailVerificationService.sendVerificationEmailForUser(req.user!.userId);
@@ -198,9 +234,19 @@ export class AuthController {
     const providerError = typeof req.query.error === 'string' ? req.query.error : '';
     const providerErrorDescription =
       typeof req.query.error_description === 'string' ? req.query.error_description : '';
+    const mobileCallbackUrl = GoogleOAuthService.getMobileCallbackUrl(
+      typeof req.query.state === 'string' ? req.query.state : null,
+    );
 
     if (providerError) {
       GoogleOAuthService.clearOauthCookie(res);
+      if (mobileCallbackUrl && !wantsJson) {
+        return res.redirect(302, buildMobileGoogleCallbackUrl(mobileCallbackUrl, {
+          code: 'OAUTH_PROVIDER_ERROR',
+          provider: 'google',
+          status: 'error',
+        }).toString());
+      }
       return sendGoogleOauthErrorResponse(
         wantsJson,
         res,
@@ -223,6 +269,24 @@ export class AuthController {
           'Google sign-in could not be completed safely. Please try again.',
           400,
         );
+      }
+
+      if (mobileCallbackUrl && !wantsJson) {
+        const mobileResult = await GoogleOAuthService.completeMobileAuthorization({
+          code,
+          state,
+          context: {
+            ipAddress: req.ip,
+            userAgent: req.get('user-agent'),
+          },
+        });
+
+        return res.redirect(302, buildMobileGoogleCallbackUrl(mobileCallbackUrl, {
+          accessToken: mobileResult.accessToken,
+          provider: 'google',
+          refreshToken: mobileResult.refreshToken,
+          status: 'success',
+        }).toString());
       }
 
       const { refreshToken, ...result } = await GoogleOAuthService.completeAuthorization({
@@ -248,6 +312,13 @@ export class AuthController {
       res.redirect(302, successUrl.toString());
     } catch (error: unknown) {
       GoogleOAuthService.clearOauthCookie(res);
+      if (mobileCallbackUrl && !wantsJson && error instanceof GoogleOAuthError) {
+        return res.redirect(302, buildMobileGoogleCallbackUrl(mobileCallbackUrl, {
+          code: error.code,
+          provider: 'google',
+          status: 'error',
+        }).toString());
+      }
       if (error instanceof GoogleOAuthError) {
         return sendGoogleOauthErrorResponse(wantsJson, res, error);
       }
@@ -255,6 +326,19 @@ export class AuthController {
       res.status(500).json({ error: { code: 'INTERNAL_ERROR', message: getErrorMessage(error) } });
     }
   }
+}
+
+function buildMobileGoogleCallbackUrl(
+  callbackUrl: string,
+  params: Record<string, string>,
+) {
+  const url = new URL(callbackUrl);
+
+  Object.entries(params).forEach(([key, value]) => {
+    url.searchParams.set(key, value);
+  });
+
+  return url;
 }
 
 function isZodError(error: unknown): error is { name: 'ZodError'; errors: unknown[] } {

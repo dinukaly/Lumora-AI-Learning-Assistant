@@ -13,6 +13,7 @@ router.post('/mobile/register', authRateLimit, AuthController.mobileRegister);
 router.post('/mobile/login', authRateLimit, AuthController.mobileLogin);
 router.post('/mobile/refresh', authRateLimit, AuthController.mobileRefresh);
 router.post('/mobile/logout', authRateLimit, AuthController.mobileLogout);
+router.get('/mobile/oauth/google/start', authRateLimit, AuthController.startMobileGoogleOAuth);
 router.get('/oauth/google/start', authRateLimit, AuthController.startGoogleOAuth);
 router.get('/oauth/google/callback', authRateLimit, AuthController.googleOAuthCallback);
 router.post('/verification/resend', requireAuth, authRateLimit, AuthController.resendVerificationEmail);

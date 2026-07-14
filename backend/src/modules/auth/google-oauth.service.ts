@@ -22,6 +22,14 @@ type GoogleOAuthStateCookiePayload = {
   verifier: string;
 };
 
+type MobileGoogleOAuthStatePayload = {
+  callbackUrl: string;
+  createdAtMs: number;
+  mode: 'mobile';
+  nonce: string;
+  verifier: string;
+};
+
 type GoogleDiscoveryDocument = {
   issuer: string;
   jwks_uri: string;
@@ -154,6 +162,41 @@ export class GoogleOAuthService {
     };
   }
 
+  static createMobileAuthorizationUrl(input: { callbackUrl: string }) {
+    assertGoogleOauthConfigured();
+    assertValidMobileCallbackUrl(input.callbackUrl);
+
+    const nonce = randomBase64Url(32);
+    const verifier = randomBase64Url(64);
+    const challenge = toBase64Url(crypto.createHash('sha256').update(verifier).digest());
+    const authorizationUrl = new URL(config.oauth.google.authorizationUrl);
+    const encodedState = encodeMobileOauthState({
+      callbackUrl: input.callbackUrl,
+      createdAtMs: Date.now(),
+      mode: 'mobile',
+      nonce,
+      verifier,
+    });
+
+    authorizationUrl.searchParams.set('client_id', config.oauth.google.clientId);
+    authorizationUrl.searchParams.set('redirect_uri', config.oauth.google.redirectUri);
+    authorizationUrl.searchParams.set('response_type', 'code');
+    authorizationUrl.searchParams.set('scope', config.oauth.google.scopes.join(' '));
+    authorizationUrl.searchParams.set('state', encodedState);
+    authorizationUrl.searchParams.set('nonce', nonce);
+    authorizationUrl.searchParams.set('code_challenge', challenge);
+    authorizationUrl.searchParams.set('code_challenge_method', 'S256');
+    authorizationUrl.searchParams.set('prompt', 'select_account');
+
+    return {
+      authorizationUrl: authorizationUrl.toString(),
+    };
+  }
+
+  static getMobileCallbackUrl(state?: string | null) {
+    return decodeMobileOauthState(state)?.callbackUrl ?? null;
+  }
+
   static applyOauthCookie(res: Response, cookieValue: string) {
     res.cookie(GOOGLE_OAUTH_COOKIE_NAME, cookieValue, GOOGLE_OAUTH_COOKIE_OPTIONS);
   }
@@ -176,6 +219,54 @@ export class GoogleOAuthService {
 
     const oauthState = decodeOauthCookie(input.cookieValue);
     if (!oauthState || oauthState.state !== input.state) {
+      throw new GoogleOAuthError(
+        'OAUTH_INVALID_STATE',
+        'Google sign-in could not be completed safely. Please try again.',
+        400,
+      );
+    }
+
+    if (Date.now() - oauthState.createdAtMs > config.oauth.google.stateTtlMs) {
+      throw new GoogleOAuthError(
+        'OAUTH_INVALID_STATE',
+        'Google sign-in could not be completed safely. Please try again.',
+        400,
+      );
+    }
+
+    const tokenResponse = await exchangeAuthorizationCode({
+      code: input.code,
+      verifier: oauthState.verifier,
+    });
+    const idTokenPayload = await verifyGoogleIdToken(tokenResponse.id_token, oauthState.nonce);
+    const userInfo = await fetchGoogleUserInfo(tokenResponse.access_token);
+    const profile = resolveGoogleProfile(idTokenPayload, userInfo);
+    const user = await findOrCreateUserForGoogleProfile(profile);
+    const payload = { userId: user.id, role: user.role };
+    const accessToken = generateAccessToken(payload);
+    const refreshToken = generateRefreshToken(payload);
+    await RefreshSessionService.createSession({
+      userId: user._id,
+      refreshToken,
+      ...input.context,
+    });
+
+    return {
+      user: mapAuthUser(user),
+      accessToken,
+      refreshToken,
+    };
+  }
+
+  static async completeMobileAuthorization(input: {
+    code: string;
+    state: string;
+    context?: RefreshSessionContext;
+  }): Promise<IssuedSocialSession> {
+    assertGoogleOauthConfigured();
+
+    const oauthState = decodeMobileOauthState(input.state);
+    if (!oauthState) {
       throw new GoogleOAuthError(
         'OAUTH_INVALID_STATE',
         'Google sign-in could not be completed safely. Please try again.',
@@ -262,6 +353,51 @@ function decodeOauthCookie(cookieValue?: string | null): GoogleOAuthStateCookieP
       createdAtMs: parsed.createdAtMs,
       nonce: parsed.nonce,
       state: parsed.state,
+      verifier: parsed.verifier,
+    };
+  } catch {
+    return null;
+  }
+}
+
+function encodeMobileOauthState(payload: MobileGoogleOAuthStatePayload) {
+  const encodedPayload = Buffer.from(JSON.stringify(payload), 'utf8').toString('base64url');
+  const signature = signOauthCookiePayload(encodedPayload);
+  return `${encodedPayload}.${signature}`;
+}
+
+function decodeMobileOauthState(state?: string | null): MobileGoogleOAuthStatePayload | null {
+  if (!state) {
+    return null;
+  }
+
+  try {
+    const [encodedPayload, signature] = state.split('.');
+    if (!encodedPayload || !signature || !isOauthCookieSignatureValid(encodedPayload, signature)) {
+      return null;
+    }
+
+    const parsed = JSON.parse(
+      Buffer.from(encodedPayload, 'base64url').toString('utf8'),
+    ) as Partial<MobileGoogleOAuthStatePayload>;
+
+    if (
+      parsed.mode !== 'mobile'
+      || typeof parsed.callbackUrl !== 'string'
+      || typeof parsed.createdAtMs !== 'number'
+      || typeof parsed.nonce !== 'string'
+      || typeof parsed.verifier !== 'string'
+    ) {
+      return null;
+    }
+
+    assertValidMobileCallbackUrl(parsed.callbackUrl);
+
+    return {
+      callbackUrl: parsed.callbackUrl,
+      createdAtMs: parsed.createdAtMs,
+      mode: 'mobile',
+      nonce: parsed.nonce,
       verifier: parsed.verifier,
     };
   } catch {
@@ -578,6 +714,28 @@ function toBase64Url(value: Buffer) {
 
 function randomBase64Url(size: number) {
   return crypto.randomBytes(size).toString('base64url');
+}
+
+function assertValidMobileCallbackUrl(callbackUrl: string) {
+  let parsedUrl: URL;
+
+  try {
+    parsedUrl = new URL(callbackUrl);
+  } catch {
+    throw new GoogleOAuthError(
+      'OAUTH_INVALID_STATE',
+      'Google sign-in could not be completed safely. Please try again.',
+      400,
+    );
+  }
+
+  if (parsedUrl.protocol !== 'lumora:') {
+    throw new GoogleOAuthError(
+      'OAUTH_INVALID_STATE',
+      'Google sign-in could not be completed safely. Please try again.',
+      400,
+    );
+  }
 }
 
 function normalizeEmail(value?: string) {

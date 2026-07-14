@@ -19,7 +19,12 @@ export const verifyEmailQuerySchema = z.object({
   token: z.string().min(1),
 });
 
+export const mobileGoogleOauthStartQuerySchema = z.object({
+  callbackUrl: z.string().min(1),
+});
+
 export type RegisterDTO = z.infer<typeof registerSchema>;
 export type LoginDTO = z.infer<typeof loginSchema>;
 export type RefreshDTO = z.infer<typeof refreshSchema>;
 export type VerifyEmailQueryDTO = z.infer<typeof verifyEmailQuerySchema>;
+export type MobileGoogleOauthStartQueryDTO = z.infer<typeof mobileGoogleOauthStartQuerySchema>;
