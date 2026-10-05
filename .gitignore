@@ -22,3 +22,15 @@ dist-ssr
 *.njsproj
 *.sln
 *.sw?
+
+# Environment files
+.env
+.env.local
+.env.production
+
+# Uploaded files (test artifacts / local development)
+uploads/
+
+# Python worker artifacts
+__pycache__/
+*.py[cod]
