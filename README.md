@@ -1,178 +1,113 @@
-# Lumora
+# Lumora — AI-Powered Learning Assistant
 
-AI-powered learning assistant for studying from PDF documents with retrieval-grounded chat, summaries, flashcards, quizzes, progress tracking, and admin operations.
+<div align="center">
 
-## Overview
+![TypeScript](https://img.shields.io/badge/TypeScript-5.7+-3178C6?style=for-the-badge&logo=typescript&logoColor=white)
+![React](https://img.shields.io/badge/React-19.0-61DAFB?style=for-the-badge&logo=react&logoColor=black)
+![Node.js](https://img.shields.io/badge/Node.js-22.x-339933?style=for-the-badge&logo=nodedotjs&logoColor=white)
+![Express](https://img.shields.io/badge/Express-4.21-000000?style=for-the-badge&logo=express&logoColor=white)
+![MongoDB](https://img.shields.io/badge/MongoDB_Atlas-Vector_Search-47A248?style=for-the-badge&logo=mongodb&logoColor=white)
+![Redis](https://img.shields.io/badge/Redis-BullMQ-DC382D?style=for-the-badge&logo=redis&logoColor=white)
+![TailwindCSS](https://img.shields.io/badge/Tailwind_CSS-v4-06B6D4?style=for-the-badge&logo=tailwindcss&logoColor=white)
 
-Lumora is a full-stack learning platform that turns uploaded PDFs into interactive study workspaces. A user can upload a document, wait for background processing, and then ask grounded questions, generate study aids, review flashcards, take quizzes, and track learning progress.
+<p align="center">
+  <strong>Transform dense PDF documents into interactive study workspaces powered by retrieval-augmented AI, active recall flashcards, quizzes, realtime notifications, and administrative analytics.</strong>
+</p>
 
-The project is built as a realistic SaaS-style application rather than a small prompt demo. It includes authentication, email verification, background jobs, realtime notifications, document storage, vector retrieval, AI provider abstractions, and an admin console.
+---
 
-## Problem Statement
+</div>
 
-Learning from dense PDFs is slow. Students and professionals often need to search for answers, identify important concepts, convert reading material into practice, and revisit weak areas over time.
+## 🌟 Overview
 
-Lumora addresses this by combining document ingestion, retrieval-augmented AI, and active learning tools in one workspace.
+**Lumora** turns PDF textbooks, research papers, and lecture slides into study workspaces with document-grounded chat, summaries, flashcards, and quizzes.
 
-## Implemented Features
+Its retrieval-augmented generation (RAG) pipeline extracts text with page references, splits it into chunks, and retrieves relevant passages for AI responses. Redis and BullMQ handle background processing, while Socket.IO delivers progress notifications.
 
-### Learner Experience
+## 🏗️ System Architecture
 
-- PDF document library with upload, listing, detail, viewing, and deletion.
-- Document workspace with Content, Chat, AI Actions, Flashcards, and Quizzes tabs.
-- Dashboard with learning progress data.
-- Global flashcard and quiz experiences.
-- Realtime notification popover and document/job status updates.
-
-### Document Processing
-
-- PDF-only upload validation with a 50 MB limit.
-- S3-compatible object storage integration for uploaded PDFs.
-- BullMQ/Redis background processing.
-- Separate API and worker runtime entry points.
-- Python/PyMuPDF text extraction with page-preserving output.
-- Text cleaning, semantic chunking, embedding generation, and chunk persistence.
-- MongoDB Atlas Vector Search support for document chunk retrieval.
-- Document status transitions and success/failure notifications.
-
-### AI and Learning Tools
-
-- Document-grounded chat endpoint with citations.
-- Chat response streaming through Server-Sent Events.
-- Persisted conversations and messages.
-- AI Actions for document summaries, extracted concepts, takeaways, and concept deep dives.
-- Saved AI Action artifacts for later reload.
-- Async flashcard generation with source chunk linkage.
-- Flashcard review scheduling with review counts and next-review dates.
-- Async quiz generation.
-- Quiz reads that hide correct answers.
-- Quiz submission with scoring, explanations, and persisted attempts.
-- Usage event logging for AI/admin analytics.
-
-### Authentication and Account Security
-
-- Local email/password registration and login.
-- JWT access tokens.
-- Refresh tokens stored in HttpOnly cookies.
-- Server-side refresh sessions with hashed token storage.
-- Refresh token rotation, logout revocation, account-disable revocation, and reuse detection.
-- Email verification and resend flow.
-- Verified-email gate for protected document, conversation, AI, flashcard, and quiz endpoints.
-- Google OAuth login/signup with backend-owned authorization-code flow, state validation, PKCE, nonce validation, and safe verified-email linking.
-- Apple Sign In is intentionally disabled.
-- Account-aware failed-login protection and auth endpoint rate limiting.
-- Profile editing and password change.
-- Direct avatar upload with JPEG/PNG/WebP validation, configurable size limit, Sharp processing, WebP output, and S3-compatible avatar storage.
-
-### Admin Operations
-
-- Admin-only route guard.
-- User listing, role updates, and disable/re-enable support.
-- Cross-user document listing and admin document deletion.
-- Job listing and failed-job retry.
-- Overview stats and usage analytics.
-- System-wide notification broadcast.
-
-## Deployment Scaffolding
-
-The repository includes deployment-oriented files and runtime separation, but no live deployment URL is currently documented.
-
-Included scaffolding:
-
-- Dockerfile for the backend API/worker image.
-- API process command: `npm run start:api`.
-- Worker process command: `npm run start:worker`.
-- Frontend Vercel SPA rewrite config.
-- GitHub Actions workflow for manual staging/production-style deployment.
-- Health endpoints: `GET /health`, `GET /livez`, and `GET /readyz`.
-
-The intended hosted shape is:
-
-- Frontend on Vercel.
-- Backend API service on Railway or a similar Node/Docker host.
-- Backend worker service on Railway or a similar Node/Docker host.
-- Redis for BullMQ.
-- MongoDB Atlas for data and vector search.
-- S3-compatible storage such as Cloudflare R2 for documents and avatars.
-
-## Tech Stack
-
-| Layer            | Technology                                                                 |
-| ---------------- | -------------------------------------------------------------------------- |
-| Frontend         | React 19, TypeScript, Vite, React Router, Redux Toolkit, RTK Query         |
-| UI               | Tailwind CSS 4, Radix UI primitives, shadcn-style components, lucide-react |
-| Backend          | Node.js 22, Express, TypeScript                                            |
-| Database         | MongoDB, Mongoose                                                          |
-| Vector Search    | MongoDB Atlas Vector Search                                                |
-| Queue            | BullMQ, Redis                                                              |
-| Realtime         | Socket.IO                                                                  |
-| Storage          | S3-compatible storage provider, intended for Cloudflare R2                 |
-| PDF Extraction   | Python 3, PyMuPDF                                                          |
-| AI Chat          | OpenRouter provider or mock provider                                       |
-| Embeddings       | Google, HuggingFace, local Xenova transformers, or mock provider           |
-| Email            | Console, SMTP, Resend, or SendGrid                                         |
-| Image Processing | Sharp                                                                      |
-
-## Architecture
-
-Lumora uses a modular monolith backend with a separate React frontend.
-
-```text
-React/Vite frontend
-  -> Express API + Socket.IO
-  -> MongoDB / MongoDB Atlas Vector Search
-  -> Redis / BullMQ
-  -> API process + worker process
-  -> S3-compatible object storage
-  -> Chat and embedding providers
+```mermaid
+flowchart LR
+    Web[React Web App] --> API[Express API]
+    API --> DB[(MongoDB / Atlas Vector Search)]
+    API --> Storage[(S3-Compatible Storage)]
+    API --> Queue[(Redis / BullMQ)]
+    Queue --> Worker[Background Worker]
+    Worker --> PDF[Python / PyMuPDF]
+    Worker --> DB
+    Worker --> Storage
+    Worker --> AI[LLM / Embedding Providers]
+    API --> AI
+    API --> Realtime[Socket.IO Notifications]
+    Realtime --> Web
 ```
 
-Backend modules are organized by product domain:
+## ✨ Key Features
 
-- `auth`
-- `users`
-- `documents`
-- `ai`
-- `learning`
-- `notifications`
-- `admin`
-- `analytics`
-- `jobs`
+- **Document workspace:** Upload PDFs up to 50 MB, browse your library, and study using the PDF reader, chat, AI actions, flashcards, and quizzes.
+- **Document-grounded AI:** Stream chat responses with page citations, generate summaries, extract concepts, and request explanations. Retrieval supports vector search and a lexical fallback.
+- **Active learning:** Generate flashcards with spaced-repetition scheduling and multiple-choice quizzes with server-side scoring, explanations, and attempt history.
+- **Learning dashboard:** Track review counts, quiz results, and recent activity.
+- **Account security:** Email verification, Google OAuth, rotating refresh sessions, rate limiting, login lockouts, profile editing, and avatar uploads.
+- **Admin tools:** Manage users and documents, inspect and retry background jobs, view AI usage analytics, and broadcast notifications.
+- **Mobile integration:** Dedicated mobile authentication endpoints and Expo push-token support.
 
-Shared infrastructure lives under `backend/src/common`, including email, queue, Redis, realtime, storage, middleware, and health helpers.
+## 💻 Tech Stack
 
-## AI and RAG Pipeline
+| Layer | Technologies |
+| :--- | :--- |
+| Web client | React 19, TypeScript, Vite, Redux Toolkit / RTK Query |
+| UI | Tailwind CSS v4, Radix UI, Lucide React |
+| API | Node.js 22, Express, TypeScript, Mongoose |
+| Data and jobs | MongoDB / Atlas Vector Search, Redis, BullMQ |
+| PDF and storage | Python, PyMuPDF, S3-compatible storage, Sharp |
+| AI | OpenRouter; Google, HuggingFace, local Xenova, or mock embeddings |
+| Notifications | Socket.IO, Expo push, SendGrid / Resend / SMTP / console email |
 
-Lumora's AI flow is retrieval-augmented:
+## 📂 Project Structure
 
 ```text
-PDF upload
-  -> storage
-  -> queue job
-  -> PyMuPDF extraction
-  -> cleaning
-  -> semantic chunking
-  -> embeddings
-  -> MongoDB document chunks
-  -> Atlas Vector Search retrieval
-  -> prompt assembly
-  -> chat provider response
-  -> citations and usage logging
+backend/
+├── src/
+│   ├── server.ts       # API and Socket.IO entry point
+│   ├── worker.ts       # BullMQ worker entry point
+│   ├── config/         # Environment and database configuration
+│   ├── common/         # Middleware, email, queues, storage, utilities
+│   └── modules/        # Auth, documents, AI, learning, admin, and more
+├── python-worker/     # PDF extraction and Python tests
+├── scripts/           # Verification scripts and admin maintenance
+└── Dockerfile         # API / worker container image
+frontend/lumora-ai/
+├── src/
+│   ├── app/            # Redux store and API setup
+│   ├── components/     # Shared UI and layouts
+│   ├── features/       # Feature pages and state
+│   └── hooks/          # Shared React hooks
+└── public/            # Static assets and screenshots
 ```
 
-The AI layer separates text generation from embeddings:
+## 🚀 Local Development
 
-- `CHAT_PROVIDER=openrouter` uses the OpenRouter chat provider.
-- `CHAT_PROVIDER=mock` returns deterministic mock responses for development and verification.
-- `EMBEDDING_PROVIDER=google`, `huggingface`, `local`, or `mock` selects the embedding implementation.
+### Prerequisites
 
-## Demo Mode
+- Node.js 22 and npm 10 or later.
+- Python 3.10+ with pip.
+- MongoDB (local or Atlas), Redis, and an S3-compatible document bucket such as R2 or MinIO. Atlas Vector Search is needed for vector retrieval.
 
-Demo Mode is the fastest way to boot the app without real AI or email provider accounts.
+### 1. Install and configure the backend
 
-Use it when you want to inspect the UI, auth flows, profile pages, admin pages, and general API behavior with mock AI responses.
+From the repository root:
 
-Backend settings:
+```bash
+cd backend
+npm install
+python -m pip install -r python-worker/requirements.txt
+cp .env.example .env
+```
+
+Edit `backend/.env` using the configuration reference below. Replace the database, JWT, and storage placeholders before running the app.
+
+For development without AI API keys, set:
 
 ```env
 CHAT_PROVIDER=mock
@@ -181,138 +116,33 @@ EMAIL_PROVIDER=console
 GOOGLE_OAUTH_ENABLED=false
 ```
 
-Demo Mode still needs:
+Mock mode still requires MongoDB, Redis, and document storage. Console email prints verification links to the API terminal. The example environment file repeats Google OAuth settings near the bottom; keep a single `GOOGLE_OAUTH_ENABLED=false` entry unless configuring Google sign-in.
 
-- A reachable MongoDB database.
-- Redis if you want to start the worker or test queued flows.
-- S3-compatible storage if you want document or avatar uploads to succeed, because uploaded files are stored before processing.
+For real AI responses, set `CHAT_PROVIDER=openrouter`, provide `OPENROUTER_API_KEY`, and configure `OPENROUTER_MODEL`. Choose an embedding provider and matching model/dimensions; local Xenova embeddings require an initial model download. Configure the Atlas index described below for vector search.
 
-Local demo setup:
+### 2. Start Redis, the API, and the worker
+
+If Redis is not already running:
 
 ```bash
-cd backend
-cp .env.example .env
-npm install
-python -m pip install -r python-worker/requirements.txt
+docker run --name lumora-redis -p 6379:6379 -d redis:alpine
 ```
 
-```bash
-cd frontend/lumora-ai
-cp .env.example .env
-npm install
-```
-
-Start Redis if you want queue support:
+Run these commands in separate terminals, both from `backend/`:
 
 ```bash
-docker run --name lumora-redis -p 6379:6379 redis:alpine
-```
-
-Run the services:
-
-```bash
-cd backend
+# API
 npm run dev:api
 ```
 
 ```bash
-cd backend
+# Background processing
 npm run dev:worker
 ```
 
-```bash
-cd frontend/lumora-ai
-npm run dev
-```
+### 3. Start the frontend
 
-Frontend URL:
-
-```text
-http://localhost:5173
-```
-
-Backend URL:
-
-```text
-http://localhost:5000
-```
-
-## Full RAG Mode
-
-Full RAG Mode enables the complete document-grounded learning workflow.
-
-Required services:
-
-- MongoDB Atlas with Vector Search support.
-- Redis for BullMQ jobs.
-- Backend API process.
-- Backend worker process.
-- Python 3 with PyMuPDF installed from `backend/python-worker/requirements.txt`.
-- S3-compatible object storage for PDFs.
-- S3-compatible public avatar storage if using avatar uploads.
-- A chat provider, normally OpenRouter.
-- An embedding provider: Google, HuggingFace, or local Xenova transformers.
-
-Recommended backend settings for a full local or staging run:
-
-```env
-MONGODB_URI=mongodb+srv://<username>:<password>@<cluster>.mongodb.net/lumora?retryWrites=true&w=majority
-REDIS_HOST=localhost
-REDIS_PORT=6379
-
-S3_ENDPOINT=https://<account-id>.r2.cloudflarestorage.com
-S3_REGION=auto
-S3_ACCESS_KEY_ID=<r2-access-key-id>
-S3_SECRET_ACCESS_KEY=<r2-secret-access-key>
-S3_BUCKET_NAME=lumora-documents
-S3_FORCE_PATH_STYLE=true
-S3_AUTO_CREATE_BUCKET=false
-
-AVATAR_S3_BUCKET_NAME=lumora-avatars
-AVATAR_PUBLIC_BASE_URL=https://<avatar-public-domain>
-
-CHAT_PROVIDER=openrouter
-OPENROUTER_API_KEY=<openrouter-api-key>
-OPENROUTER_BASE_URL=https://openrouter.ai/api/v1
-OPENROUTER_MODEL=google/gemini-2.0-flash-lite-preview-02-05
-
-EMBEDDING_PROVIDER=local
-EMBEDDING_MODEL=Xenova/all-MiniLM-L6-v2
-EMBEDDING_DIMENSIONS=384
-```
-
-For Google embeddings, configure `EMBEDDING_PROVIDER=google`, `GOOGLE_API_KEY`, and matching embedding dimensions. For HuggingFace embeddings, configure `EMBEDDING_PROVIDER=huggingface` and `HUGGINGFACE_API_KEY`.
-
-## Local Setup
-
-### Prerequisites
-
-- Node.js 22+
-- npm
-- Python 3
-- Docker, recommended for Redis
-- MongoDB or MongoDB Atlas
-- S3-compatible storage credentials for uploads
-- AI/email/OAuth provider credentials only for the features you enable
-
-### Backend
-
-```bash
-cd backend
-npm install
-python -m pip install -r python-worker/requirements.txt
-cp .env.example .env
-npm run dev:api
-```
-
-Run the worker in a separate terminal:
-
-```bash
-cd backend
-npm run dev:worker
-```
-
-### Frontend
+From the repository root, in another terminal:
 
 ```bash
 cd frontend/lumora-ai
@@ -321,192 +151,245 @@ cp .env.example .env
 npm run dev
 ```
 
-The frontend expects `VITE_API_URL=http://localhost:5000/api`, and the API routes are mounted under `/api/v1`.
+Open **http://localhost:5173**. The frontend example uses `VITE_API_URL=http://localhost:5000/api`. Register an account and follow the email verification link before using features that require verification.
 
-## Environment Variables
+## 🛠️ Admin Maintenance CLI
 
-The README only lists variables that exist in the repository's environment example files.
-
-### Backend Environment
-
-| Group            | Variables                                                                                                                                                                                                                                                                                             |
-| ---------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Server           | `PORT`, `NODE_ENV`, `FRONTEND_URL`, `TRUST_PROXY`                                                                                                                                                                                                                                                     |
-| Database         | `MONGODB_URI`                                                                                                                                                                                                                                                                                         |
-| JWT              | `JWT_ACCESS_SECRET`, `JWT_REFRESH_SECRET`, `JWT_ACCESS_EXPIRATION`, `JWT_REFRESH_EXPIRATION`                                                                                                                                                                                                          |
-| Google OAuth     | `GOOGLE_OAUTH_ENABLED`, `GOOGLE_OAUTH_CLIENT_ID`, `GOOGLE_OAUTH_CLIENT_SECRET`, `GOOGLE_OAUTH_REDIRECT_URI`, `GOOGLE_OAUTH_FRONTEND_CALLBACK_URL`, `GOOGLE_OAUTH_STATE_TTL_MS`, `GOOGLE_OAUTH_AUTHORIZATION_URL`, `GOOGLE_OAUTH_TOKEN_URL`, `GOOGLE_OAUTH_USERINFO_URL`, `GOOGLE_OAUTH_DISCOVERY_URL` |
-| Email            | `EMAIL_PROVIDER`, `EMAIL_FROM`, `EMAIL_VERIFICATION_URL_BASE`, `EMAIL_VERIFICATION_TOKEN_TTL_MINUTES`, `EMAIL_VERIFICATION_RESEND_COOLDOWN_SECONDS`, `RESEND_API_KEY`, `SENDGRID_API_KEY`, `SMTP_HOST`, `SMTP_PORT`, `SMTP_USER`, `SMTP_PASSWORD`, `SMTP_SECURE`                                      |
-| Chat             | `CHAT_PROVIDER`, `OPENROUTER_API_KEY`, `OPENROUTER_BASE_URL`, `OPENROUTER_MODEL`                                                                                                                                                                                                                      |
-| Embeddings       | `EMBEDDING_PROVIDER`, `EMBEDDING_MODEL`, `EMBEDDING_DIMENSIONS`, `EMBEDDING_BATCH_SIZE`, `GOOGLE_API_KEY`, `GOOGLE_AI_BASE_URL`, `HUGGINGFACE_API_KEY`, `HUGGINGFACE_BASE_URL`, `EMBEDDING_MODEL_CACHE_DIR`                                                                                           |
-| Chunking         | `CHUNK_TARGET_TOKENS`, `CHUNK_MAX_TOKENS`, `CHUNK_OVERLAP_TOKENS`                                                                                                                                                                                                                                     |
-| Vector Search    | `VECTOR_SEARCH_INDEX_NAME`, `VECTOR_SEARCH_SIMILARITY`, `VECTOR_SEARCH_DEFAULT_LIMIT`, `VECTOR_SEARCH_NUM_CANDIDATES_MULTIPLIER`, `VECTOR_SEARCH_AUTO_ENSURE`, `VECTOR_SEARCH_READY_TIMEOUT_MS`, `VECTOR_SEARCH_READY_POLL_INTERVAL_MS`                                                               |
-| Document Storage | `S3_ENDPOINT`, `S3_REGION`, `S3_ACCESS_KEY_ID`, `S3_SECRET_ACCESS_KEY`, `S3_BUCKET_NAME`, `S3_USE_SSL`, `S3_PUBLIC_BASE_URL`, `S3_FORCE_PATH_STYLE`, `S3_AUTO_CREATE_BUCKET`                                                                                                                          |
-| Avatar Storage   | `AVATAR_S3_BUCKET_NAME`, `AVATAR_PUBLIC_BASE_URL`, `AVATAR_S3_FORCE_PATH_STYLE`, `AVATAR_S3_AUTO_CREATE_BUCKET`, `AVATAR_MAX_UPLOAD_BYTES`, `AVATAR_OUTPUT_SIZE_PX`, `AVATAR_S3_ENDPOINT`, `AVATAR_S3_REGION`, `AVATAR_S3_ACCESS_KEY_ID`, `AVATAR_S3_SECRET_ACCESS_KEY`                               |
-| Redis            | `REDIS_HOST`, `REDIS_PORT`, `REDIS_URL`, `REDIS_USERNAME`, `REDIS_PASSWORD`, `REDIS_TLS`                                                                                                                                                                                                              |
-| Rate Limiting    | `AUTH_RATE_LIMIT_WINDOW_MS`, `AUTH_RATE_LIMIT_MAX`, `LOGIN_PROTECTION_WINDOW_MS`, `LOGIN_PROTECTION_MAX_ATTEMPTS`, `LOGIN_PROTECTION_LOCKOUT_MS`                                                                                                                                                      |
-| PDF Extraction   | `PYTHON_EXECUTABLE`, `PDF_EXTRACTION_TIMEOUT_MS`                                                                                                                                                                                                                                                      |
-
-### Frontend Environment
-
-| Variable                   | Purpose                                                             |
-| -------------------------- | ------------------------------------------------------------------- |
-| `VITE_API_URL`             | API base before `/v1`; local example is `http://localhost:5000/api` |
-| `VITE_GOOGLE_AUTH_ENABLED` | Shows or hides the Google auth button                               |
-
-## NPM Scripts
-
-### Backend
-
-| Script                       | Command                                          |
-| ---------------------------- | ------------------------------------------------ |
-| `npm run dev`                | Starts the API with `tsx watch src/server.ts`    |
-| `npm run dev:api`            | Starts the API with `tsx watch src/server.ts`    |
-| `npm run dev:worker`         | Starts the worker with `tsx watch src/worker.ts` |
-| `npm run build`              | Compiles TypeScript with `tsconfig.build.json`   |
-| `npm run start`              | Runs `dist/server.js`                            |
-| `npm run start:api`          | Runs `dist/server.js`                            |
-| `npm run start:worker`       | Runs `dist/worker.js`                            |
-| `npm run lint`               | Lints backend TypeScript files                   |
-| `npm run test:ai`            | Runs AI service tests                            |
-| `npm run test:chunking`      | Runs document chunking tests                     |
-| `npm run test:vector-search` | Runs vector-search tests                         |
-| `npm run test:extraction`    | Runs Python extraction tests                     |
-| `npm run format`             | Runs Prettier over backend source                |
-
-Verification scripts exposed in `backend/package.json`:
+Lumora includes a maintenance script in [`backend/scripts/admin-maintenance.ts`](backend/scripts/admin-maintenance.ts) to manage admin accounts directly from the terminal:
 
 ```bash
-npm run verify:t33
-npm run verify:t34
-npm run verify:t35
-npm run verify:t42
-npm run verify:t43
-npm run verify:t44
-npm run verify:t51
-npm run verify:t53
-npm run verify:t83
-npm run verify:t84
-npm run verify:t85
-npm run verify:t86
-npm run verify:t87
-npm run verify:t88
-npm run verify:t811
+cd backend
+
+# 1. List all admin users
+npm run admin:manage list
+
+# 2. Create a new verified administrator
+npm run admin:manage create-admin "System Admin" admin@lumora.app "SecurePassword123!"
+
+# 3. Reset an existing user's password and unlock account
+npm run admin:manage reset-password user@lumora.app "NewSecurePassword123!"
 ```
 
-### Frontend
+---
 
-| Script            | Command                                         |
-| ----------------- | ----------------------------------------------- |
-| `npm run dev`     | Starts Vite dev server                          |
-| `npm run build`   | Runs TypeScript build and Vite production build |
-| `npm run lint`    | Runs ESLint                                     |
-| `npm run preview` | Serves the built Vite app locally               |
+## ⚙️ Environment Variables
 
-## API Overview
+### Backend Configuration Reference
 
-Base URL:
+See [backend/.env.example](backend/.env.example) for the complete provider and service settings.
 
-```text
-/api/v1
+| Variable | Type | Default | Description |
+| :--- | :---: | :---: | :--- |
+| `PORT` | `number` | `5000` | HTTP port for the Express server |
+| `NODE_ENV` | `string` | `development` | Runtime environment (`development`, `production`, `test`) |
+| `FRONTEND_URL` | `string` | `http://localhost:5173` | Allowed CORS origin for web client |
+| `TRUST_PROXY` | `string` | `1` | Reverse proxy trust level for IP rate limiting |
+| `MONGODB_URI` | `string` | *required* | MongoDB connection string |
+| `REDIS_HOST` | `string` | `localhost` | Redis host for BullMQ queues |
+| `REDIS_PORT` | `number` | `6379` | Redis port |
+| `JWT_ACCESS_SECRET` | `string` | *required* | Signing key for short-lived access tokens |
+| `JWT_REFRESH_SECRET` | `string` | *required* | Signing key for refresh tokens |
+| `JWT_ACCESS_EXPIRATION` | `string` | `15m` | Lifetime of access token |
+| `JWT_REFRESH_EXPIRATION` | `string` | `7d` | Lifetime of refresh session cookie |
+| `CHAT_PROVIDER` | `enum` | `mock` | Chat backend: `openrouter` or `mock` |
+| `OPENROUTER_API_KEY` | `string` | - | OpenRouter API authentication key |
+| `OPENROUTER_MODEL` | `string` | `google/gemini-2.0-flash-001` | OpenRouter model ID |
+| `EMBEDDING_PROVIDER` | `enum` | `mock` | Provider: `google`, `huggingface`, `local`, or `mock` |
+| `EMBEDDING_DIMENSIONS` | `number` | `768` | Vector embedding dimension size |
+| `GOOGLE_API_KEY` | `string` | - | Google AI Studio API key (if using Google embeddings) |
+| `S3_ENDPOINT` | `string` | - | Custom endpoint for S3 / Cloudflare R2 |
+| `S3_ACCESS_KEY_ID` | `string` | - | S3 access key ID |
+| `S3_SECRET_ACCESS_KEY` | `string` | - | S3 secret access key |
+| `S3_BUCKET_NAME` | `string` | `lumora-documents` | Private bucket for PDF storage |
+| `AVATAR_S3_BUCKET_NAME` | `string` | `lumora-avatars` | Bucket for public avatar storage |
+| `AVATAR_PUBLIC_BASE_URL` | `string` | - | Public URL base where avatars can be served |
+| `EMAIL_PROVIDER` | `enum` | `console` | Transport: `console`, `sendgrid`, `resend`, or `smtp` |
+| `GOOGLE_OAUTH_ENABLED` | `boolean` | `false` | Enable Google OAuth 2.0 login |
+| `GOOGLE_OAUTH_CLIENT_ID` | `string` | - | Google Cloud OAuth Client ID |
+| `GOOGLE_OAUTH_CLIENT_SECRET`| `string` | - | Google Cloud OAuth Client Secret |
+
+### Frontend Configuration Reference
+
+| Variable | Default | Description |
+| :--- | :--- | :--- |
+| `VITE_API_URL` | `http://localhost:5000/api` | Base API route URL |
+| `VITE_GOOGLE_AUTH_ENABLED` | `false` | Toggles display of the "Continue with Google" button |
+
+---
+
+## 📡 API Reference
+
+All routes are versioned and mounted under `/api/v1`.
+
+### 🔐 Authentication & Profile
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :---: |
+| `POST` | `/auth/register` | Register new local user account | Public |
+| `POST` | `/auth/login` | Login with email/password (sets HttpOnly cookie) | Public |
+| `POST` | `/auth/refresh` | Rotate refresh token session | Cookie |
+| `POST` | `/auth/logout` | Revoke refresh token and clear cookie | Cookie |
+| `GET` | `/auth/oauth/google/start` | Initiate Google OAuth 2.0 PKCE flow | Public |
+| `GET` | `/auth/oauth/google/callback` | Google OAuth callback handler | Public |
+| `POST` | `/auth/verification/resend` | Resend verification email | Verified |
+| `GET` | `/auth/verification/verify` | Verify email token from link | Public |
+| `POST` | `/auth/mobile/login` | Mobile login returning JSON tokens | Public |
+| `POST` | `/auth/mobile/refresh` | Mobile token rotation via JSON body | Public |
+| `GET` | `/users/me` | Get current authenticated user profile | Bearer |
+| `PATCH` | `/users/me` | Update user name and preferences | Bearer |
+| `POST` | `/users/me/avatar` | Upload and process avatar image (multipart) | Bearer |
+| `PATCH` | `/users/me/password` | Change account password | Bearer |
+| `POST` | `/users/me/push-tokens` | Register Expo push notification token | Bearer |
+
+### 📄 Documents & Processing
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :---: |
+| `POST` | `/documents/upload` | Upload PDF document (multipart, max 50MB) | Verified |
+| `GET` | `/documents` | List paginated user documents (status filter) | Verified |
+| `GET` | `/documents/:id` | Get document metadata and processing status | Verified |
+| `GET` | `/documents/:id/view` | Stream PDF content for inline browser viewing | Verified |
+| `DELETE` | `/documents/:id` | Delete document, chunks, and cascade study tools | Verified |
+
+### 🤖 AI Actions & RAG Chat
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :---: |
+| `POST` | `/ai/chat` | Document-grounded chat with SSE streaming & citations | Verified |
+| `GET` | `/conversations` | List conversation history by `documentId` | Verified |
+| `GET` | `/conversations/:id` | Get conversation message history | Verified |
+| `POST` | `/ai/summarize-document` | Generate structured executive summary | Verified |
+| `POST` | `/ai/extract-concepts` | Extract key definitions, concepts, and takeaways | Verified |
+| `POST` | `/ai/explain-concept` | Deep-dive explanation for a specific concept | Verified |
+| `GET` | `/ai/actions/latest` | Retrieve cached AI action artifacts for a document | Verified |
+
+### 📚 Learning Tools (Flashcards & Quizzes)
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :---: |
+| `POST` | `/ai/generate-flashcards` | Queue asynchronous flashcard generation job | Verified |
+| `GET` | `/learning/flashcards` | List flashcards (filter by `documentId`, `dueOnly`) | Verified |
+| `POST` | `/learning/flashcards/:id/review` | Submit spaced-repetition review (EASY/MEDIUM/HARD) | Verified |
+| `POST` | `/ai/generate-quiz` | Queue asynchronous quiz generation job | Verified |
+| `GET` | `/learning/quizzes` | List user quizzes with attempt statistics | Verified |
+| `GET` | `/learning/quizzes/:id` | Get quiz questions (correct answers hidden) | Verified |
+| `POST` | `/learning/quizzes/:id/submit` | Submit answers for scoring and detailed review | Verified |
+| `GET` | `/learning/progress` | Get aggregate learning progress statistics | Verified |
+
+### 🔔 Notifications & Admin Operations
+| Method | Endpoint | Description | Auth |
+| :--- | :--- | :--- | :---: |
+| `GET` | `/notifications` | List user notifications (with unread count) | Bearer |
+| `PATCH` | `/notifications/:id/read` | Mark individual notification as read | Bearer |
+| `PATCH` | `/notifications/read-all` | Mark all notifications as read | Bearer |
+| `GET` | `/admin/stats` | Overview dashboard statistics | Admin |
+| `GET` | `/admin/analytics/usage` | Time-series AI token and request metrics | Admin |
+| `GET` | `/admin/users` | Paginated user management table | Admin |
+| `PATCH` | `/admin/users/:id/role` | Promote/demote user (`USER` $\leftrightarrow$ `ADMIN`) | Admin |
+| `PATCH` | `/admin/users/:id/disable` | Enable or disable user account | Admin |
+| `GET` | `/admin/documents` | Cross-user document management list | Admin |
+| `DELETE` | `/admin/documents/:id` | Administrative document deletion | Admin |
+| `GET` | `/admin/jobs` | Monitor BullMQ job states | Admin |
+| `POST` | `/admin/jobs/:id/retry` | Retry failed background job | Admin |
+| `POST` | `/admin/notifications/broadcast` | Broadcast system-wide notification | Admin |
+
+---
+
+## 🧪 Testing & Automated Verification
+
+### Backend Unit & Integration Tests
+```bash
+cd backend
+
+# Run AI service unit tests
+npm run test:ai
+
+# Run semantic chunking algorithm tests
+npm run test:chunking
+
+# Run vector search aggregation tests
+npm run test:vector-search
+
+# Run Python PyMuPDF text extraction tests
+npm run test:extraction
 ```
 
-The endpoint list below is verified against the route files in `backend/src/modules`.
+### Integration verification
 
-| Area          | Endpoints                                                                                                                                                                                                                                                                            |
-| ------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Auth          | `POST /auth/register`, `POST /auth/login`, `POST /auth/refresh`, `POST /auth/logout`, `GET /auth/oauth/google/start`, `GET /auth/oauth/google/callback`, `POST /auth/verification/resend`, `GET /auth/verification/verify`                                                           |
-| Users         | `GET /users/me`, `PATCH /users/me`, `POST /users/me/avatar`, `PATCH /users/me/password`                                                                                                                                                                                              |
-| Documents     | `POST /documents/upload`, `GET /documents`, `GET /documents/:id/view`, `GET /documents/:id`, `DELETE /documents/:id`                                                                                                                                                                 |
-| Conversations | `GET /conversations`, `GET /conversations/:id`                                                                                                                                                                                                                                       |
-| AI            | `POST /ai/chat`, `GET /ai/actions/latest`, `POST /ai/summarize-document`, `POST /ai/extract-concepts`, `POST /ai/explain-concept`, `POST /ai/generate-flashcards`, `POST /ai/generate-quiz`                                                                                          |
-| Learning      | `GET /learning/progress`, `GET /learning/flashcards`, `POST /learning/flashcards/:id/review`, `GET /learning/quizzes`, `GET /learning/quizzes/:id`, `POST /learning/quizzes/:id/submit`                                                                                              |
-| Notifications | `GET /notifications`, `PATCH /notifications/read-all`, `PATCH /notifications/:id/read`                                                                                                                                                                                               |
-| Admin         | `GET /admin/users`, `PATCH /admin/users/:id/role`, `PATCH /admin/users/:id/disable`, `GET /admin/documents`, `DELETE /admin/documents/:id`, `GET /admin/jobs`, `POST /admin/jobs/:id/retry`, `GET /admin/stats`, `GET /admin/analytics/usage`, `POST /admin/notifications/broadcast` |
+Run the relevant `verify:*` scripts listed in [backend/package.json](backend/package.json) against a configured development environment with the API and worker running. These cover retrieval, chat streaming, flashcards, quizzes, sessions, email verification, OAuth, and mobile authentication.
 
-Most document, conversation, AI, flashcard, and quiz endpoints require a verified authenticated user. Admin endpoints require an authenticated user with the `ADMIN` role.
+Build each application from its own directory with `npm run build`; run `npm run lint` for lint checks.
 
-## Project Structure
+## 🚢 Production Deployment
 
-```text
-Lumora/
-  backend/
-    python-worker/
-    scripts/
-    src/
-      app.ts
-      server.ts
-      worker.ts
-      bootstrap/
-      common/
-      config/
-      modules/
-        admin/
-        ai/
-        analytics/
-        auth/
-        conversations/
-        documents/
-        jobs/
-        learning/
-        notifications/
-        users/
-    Dockerfile
-    package.json
-  frontend/
-    lumora-ai/
-      public/
-      src/
-        app/
-        components/
-        features/
-        lib/
-      vercel.json
-      package.json
-  .github/
-    workflows/
-      deploy.yml
+### Runtime services
+
+Build the frontend with `npm run build` from `frontend/lumora-ai/` and deploy its `dist/` output to a static host with SPA route rewrites. Build the backend from `backend/` and run the API (`npm run start:api`) and worker (`npm run start:worker`) as separate services.
+
+Both backend services need access to MongoDB, Redis, object storage, and the configured AI providers. Set production JWT secrets, frontend/CORS URLs, email delivery, and optional OAuth callback URLs. The API exposes `/health`, `/livez`, and `/readyz` for service checks.
+
+### MongoDB Atlas Vector Search Index Configuration
+
+Create a vector search index on the `documentchunks` collection with the name specified by `VECTOR_SEARCH_INDEX_NAME` (default: `document_chunks_vector_idx`):
+
+```json
+{
+  "fields": [
+    {
+      "type": "vector",
+      "path": "embedding",
+      "numDimensions": 768,
+      "similarity": "cosine"
+    },
+    {
+      "type": "filter",
+      "path": "documentId"
+    },
+    {
+      "type": "filter",
+      "path": "pageNumber"
+    }
+  ]
+}
+```
+Match `numDimensions` to `EMBEDDING_DIMENSIONS` and the selected model; local `Xenova/all-MiniLM-L6-v2` uses `384`.
+
+---
+
+### Docker & Containerized Execution
+
+The backend contains a multi-stage [`Dockerfile`](backend/Dockerfile) bundling Node.js 22, Python 3, and PyMuPDF.
+
+```bash
+# Build the backend container image
+docker build -t lumora-backend:latest ./backend
+
+# Run API Instance
+docker run -d \
+  --name lumora-api \
+  -p 5000:5000 \
+  -e LUMORA_RUNTIME_ROLE=api \
+  --env-file ./backend/.env \
+  lumora-backend:latest npm run start:api
+
+# Run Background Worker Instance
+docker run -d \
+  --name lumora-worker \
+  -e LUMORA_RUNTIME_ROLE=worker \
+  --env-file ./backend/.env \
+  lumora-backend:latest npm run start:worker
 ```
 
-## Screenshots
+---
 
-### Documents
+## 📸 Screenshots
 
-![Lumora documents page](frontend/lumora-ai/public/screenshots/documents_page.png)
+| Document Workspace | Interactive Flashcards |
+| :---: | :---: |
+| ![Documents Page](frontend/lumora-ai/public/screenshots/documents_page.png) | ![Flashcards Page](frontend/lumora-ai/public/screenshots/flashcards_page.png) |
 
-### Flashcards
+| Quizzes | User Profile & Security |
+| :---: | :---: |
+| ![Quizzes Page](frontend/lumora-ai/public/screenshots/quizzes_page.png) | ![Profile Page](frontend/lumora-ai/public/screenshots/profile_page.png) |
 
-![Lumora flashcards page](frontend/lumora-ai/public/screenshots/flashcards_page.png)
+---
 
-### Quizzes
+## 💬 Feedback
 
-![Lumora quizzes page](frontend/lumora-ai/public/screenshots/quizzes_page.png)
-
-### Profile
-
-![Lumora profile page](frontend/lumora-ai/public/screenshots/profile_page.png)
-
-## Current Status
-
-Implemented:
-
-- Core full-stack learner application.
-- Auth, profile, email verification, Google OAuth, refresh sessions, and login protection.
-- PDF upload and asynchronous processing pipeline.
-- RAG-backed chat and AI Actions.
-- Flashcards, quizzes, progress tracking, and notifications.
-- Admin console and admin APIs.
-
-## Technical Highlights
-
-- Modular monolith backend with clear domain boundaries.
-- Separate API and worker processes from the same codebase.
-- Provider abstractions for chat, embeddings, storage, and email.
-- Page-preserving PDF extraction for citation-aware answers.
-- Queue-backed processing so uploads return quickly while expensive work happens in the worker.
-- Server-side refresh-session persistence for more realistic account security.
-- Realtime Socket.IO updates for document status and notifications.
-- Admin operations built on first-class job, document, user, and usage-event models.
-
-## License
-
-This project is licensed under the MIT License.
+Report bugs or suggest improvements through the repository's Issues tab. For bugs, include the steps to reproduce, expected and actual behavior, and relevant logs with credentials and personal information removed.
